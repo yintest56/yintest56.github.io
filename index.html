@@ -1,8 +1,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <!-- 🔧 修改位置：調整 viewport，允許手機版正常縮放與滾動，提升行動裝置體驗 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>⭐學生打卡＆數位聯絡簿⭐</title>
     
     <!-- 引入 Tailwind CSS -->
@@ -26,12 +25,7 @@
 
     <!-- 網頁自訂樣式 -->
     <style>
-        /* 🔧 修改位置：調整 body 的 overflow，手機版允許上下滾動，大螢幕(桌機)才鎖定高度 */
-        body { margin: 0; overflow-x: hidden; overflow-y: auto; background-color: #f3f4f6; }
-        @media (min-width: 1024px) {
-            body { overflow: hidden; }
-        }
-        
+        body { margin: 0; overflow: hidden; background-color: #f3f4f6; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
@@ -126,15 +120,6 @@
           useEffect(() => {
             const timer = setTimeout(() => { setIsMounted(true); }, 200); 
             return () => clearTimeout(timer);
-          }, []);
-
-          // 🔧 修改位置：新增手機裝置狀態偵測，用於動態切換寬度與排版
-          const [isMobile, setIsMobile] = useState(false);
-          useEffect(() => {
-            const handleResize = () => setIsMobile(window.innerWidth < 1024);
-            handleResize(); // 初始化
-            window.addEventListener('resize', handleResize);
-            return () => window.removeEventListener('resize', handleResize);
           }, []);
 
           const [leftPaneWidth, setLeftPaneWidth] = useState(45);
@@ -249,16 +234,16 @@
               if (isDraggingV) {
                 const container = document.getElementById('right-pane-container');
                 if (container) {
-                  const r = container.getBoundingClientRect();
-                  const newHeight = ((r.bottom - e.clientY) / r.height) * 100;
+                  const rect = container.getBoundingClientRect();
+                  const newHeight = ((rect.bottom - e.clientY) / rect.height) * 100;
                   if (newHeight > 10 && newHeight < 60) setTaskHeight(newHeight);
                 }
               }
               if (isDraggingTaskW) {
                 const container = document.getElementById('content-area-container');
                 if (container) {
-                  const r = container.getBoundingClientRect();
-                  const newWidth = ((e.clientX - r.left) / r.width) * 100;
+                  const rect = container.getBoundingClientRect();
+                  const newWidth = ((e.clientX - rect.left) / rect.width) * 100;
                   if (newWidth > 15 && newWidth < 50) setTaskWidth(newWidth);
                 }
               }
@@ -453,7 +438,7 @@
           const getFontClass = () => settings.cbFont === 'bopomofo' ? "font-bopomofo" : settings.cbFont === 'zhuyinOnly' ? "font-zhuyin-only" : settings.cbFont === 'kai' ? "font-kai" : "font-sans";
 
           return (
-            <div className="min-h-[100dvh] w-full bg-[#f3f4f6] flex flex-col font-sans selection:bg-pink-200 overflow-x-hidden">
+            <div className="min-h-[100dvh] w-full bg-[#f3f4f6] flex flex-col font-sans selection:bg-pink-200 overflow-hidden">
               {toastMessage && (
                 <div style={{ pointerEvents: 'none' }} className="fixed top-1/4 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-[999999] animate-bounce font-bold text-sm text-center tracking-wide border-2 border-white/20">
                   {toastMessage}
@@ -500,34 +485,31 @@
                 </div>
               </header>
 
-              <!-- 🔧 修改位置：調整 flex 排版。手機版為 flex-col (上下排序)，桌機大螢幕為 lg:flex-row (左右排序) -->
-              <main className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden p-3 gap-3 relative bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-black/5 z-10">
+              <main className="flex-1 flex overflow-hidden p-3 gap-2 relative bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-black/5 z-10">
                 {(settings.viewMode === 'both' || settings.viewMode === 'checkin') && (
-                  /* 🔧 修改位置：動態調整區塊寬度，手機版或是特定模式下一律 100% 撐滿，否則才套用拖曳寬度百分比 */
-                  <section style={{ width: (isMobile || settings.viewMode === 'checkin') ? '100%' : `${leftPaneWidth}%` }} className="flex flex-col bg-white rounded-3xl shadow-md border-2 border-white overflow-hidden relative shrink-0 w-full lg:w-auto">
+                  <section style={{ width: settings.viewMode === 'checkin' ? '100%' : `${leftPaneWidth}%` }} className="flex flex-col bg-white rounded-3xl shadow-md border-2 border-white overflow-hidden relative">
                     <div className="absolute top-4 left-4 opacity-5 pointer-events-none rotate-12"><Star size={40} className="text-pink-400 fill-current"/></div>
                     <div className="absolute bottom-4 right-4 opacity-5 pointer-events-none -rotate-12"><Star size={60} className="text-blue-400 fill-current"/></div>
 
                     <div className="pt-4 pb-2 flex flex-col items-center shrink-0 z-10">
                       <ClockDisplay clockStyleIndex={settings.clockStyle} onClick={() => setSettings({...settings, clockStyle: ((settings.clockStyle || 0) + 1) % 5})} />
-                      <div className="mt-4 flex flex-wrap justify-center gap-2 px-2">
-                        <div className="flex items-baseline gap-2 px-4 py-1.5 rounded-full border border-blue-200 bg-blue-50/80 text-blue-600 shadow-sm min-w-[85px] justify-center transition-all hover:bg-blue-100"><span className="text-xs font-bold opacity-80 pointer-events-none">應到:</span><span className="text-xl font-black pointer-events-none">{stats.total}</span></div>
-                        <div className="flex items-baseline gap-2 px-4 py-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 text-emerald-600 shadow-sm min-w-[85px] justify-center transition-all hover:bg-emerald-100"><span className="text-xs font-bold opacity-80 pointer-events-none">已到:</span><span className="text-xl font-black pointer-events-none">{stats.present}</span></div>
-                        <div className="flex items-baseline gap-2 px-4 py-1.5 rounded-full border border-red-200 bg-red-50/80 text-red-600 shadow-sm min-w-[85px] justify-center transition-all hover:bg-red-100"><span className="text-xs font-bold opacity-80 pointer-events-none">遲到:</span><span className="text-xl font-black pointer-events-none">{stats.late}</span></div>
-                        <div className="flex items-baseline gap-2 px-4 py-1.5 rounded-full border border-amber-300 bg-amber-50/80 text-amber-700 shadow-sm min-w-[85px] justify-center transition-all hover:bg-amber-100"><span className="text-xs font-bold opacity-80 pointer-events-none">未到:</span><span className="text-xl font-black pointer-events-none">{stats.absent}</span></div>
-                        <div className="flex items-baseline gap-2 px-4 py-1.5 rounded-full border border-purple-200 bg-purple-50/80 text-purple-600 shadow-sm min-w-[85px] justify-center transition-all hover:bg-purple-100"><span className="text-xs font-bold opacity-80 pointer-events-none">請假:</span><span className="text-xl font-black pointer-events-none">{stats.leave}</span></div>
-                        <div className="flex items-baseline gap-2 px-4 py-1.5 rounded-full border border-cyan-200 bg-cyan-50/80 text-cyan-600 shadow-sm min-w-[85px] justify-center transition-all hover:bg-cyan-100"><span className="text-xs font-bold opacity-80 pointer-events-none">社團:</span><span className="text-xl font-black pointer-events-none">{stats.club}</span></div>
+                      <div className="mt-4 flex flex-wrap justify-center gap-2 md:gap-3 px-2">
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-blue-200 bg-blue-50/80 text-blue-600 shadow-sm min-w-[100px] justify-center transition-all hover:bg-blue-100"><span className="text-xs font-bold opacity-80 pointer-events-none">應到:</span><span className="text-xl font-black pointer-events-none">{stats.total}</span></div>
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 text-emerald-600 shadow-sm min-w-[100px] justify-center transition-all hover:bg-emerald-100"><span className="text-xs font-bold opacity-80 pointer-events-none">已到:</span><span className="text-xl font-black pointer-events-none">{stats.present}</span></div>
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-red-200 bg-red-50/80 text-red-600 shadow-sm min-w-[100px] justify-center transition-all hover:bg-red-100"><span className="text-xs font-bold opacity-80 pointer-events-none">遲到:</span><span className="text-xl font-black pointer-events-none">{stats.late}</span></div>
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-amber-300 bg-amber-50/80 text-amber-700 shadow-sm min-w-[100px] justify-center transition-all hover:bg-amber-100"><span className="text-xs font-bold opacity-80 pointer-events-none">未到:</span><span className="text-xl font-black pointer-events-none">{stats.absent}</span></div>
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-purple-200 bg-purple-50/80 text-purple-600 shadow-sm min-w-[100px] justify-center transition-all hover:bg-purple-100"><span className="text-xs font-bold opacity-80 pointer-events-none">請假:</span><span className="text-xl font-black pointer-events-none">{stats.leave}</span></div>
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-cyan-200 bg-cyan-50/80 text-cyan-600 shadow-sm min-w-[100px] justify-center transition-all hover:bg-cyan-100"><span className="text-xs font-bold opacity-80 pointer-events-none">社團:</span><span className="text-xl font-black pointer-events-none">{stats.club}</span></div>
                       </div>
                     </div>
 
                     <div className="flex-1 p-2 md:p-4 z-10 flex flex-col overflow-hidden">
-                      {/* 🔧 修改位置：將 grid-cols-6 改成 RWD 響應式欄位 (手機3欄、平板4~5欄、桌機6欄)，並移除固定 gridTemplateRows 避免文字溢出跑版 */}
-                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-1.5 md:gap-2.5 flex-1 w-full">
+                      <div className="grid grid-cols-6 gap-1.5 md:gap-2.5 flex-1 w-full" style={{ gridTemplateRows: `repeat(${Math.ceil(students.length / 6)}, minmax(0, 1fr))` }}>
                         {students.map(s => {
-                          if (s.type === 'empty') return <div key={s.id} className="flex items-center justify-center rounded-2xl bg-slate-50 text-slate-200 font-black text-xl border-2 border-dashed border-slate-100 w-full min-h-[70px] h-full pointer-events-none">{s.id}</div>;
+                          if (s.type === 'empty') return <div key={s.id} className="flex items-center justify-center rounded-2xl bg-slate-50 text-slate-200 font-black text-xl border-2 border-dashed border-slate-100 w-full h-full pointer-events-none">{s.id}</div>;
                           const isNormal = s.type === 'normal'; const isLeave = s.type === 'leave'; const isClub = s.type === 'club'; const isAbsent = s.status === 'absent'; const isLate = s.status === 'late';
                           return (
-                            <button key={s.id} type="button" onClickCapture={(e) => { e.stopPropagation(); if (isNormal && isAbsent) handleCheckIn(s.id); }} className={`relative flex flex-col items-center justify-center rounded-2xl border-2 transition-all duration-300 shadow-sm group w-full min-h-[70px] h-full overflow-hidden ${isAbsent && isNormal ? 'bg-white border-slate-200 text-slate-600 hover:border-pink-300 hover:bg-pink-50 hover:-translate-y-0.5 cursor-pointer' : 'cursor-default'} ${s.status === 'on-time' ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : ''} ${isLate ? 'bg-red-50 border-red-300 text-red-700' : ''} ${isLeave ? 'bg-orange-50 border-orange-300 text-orange-700 opacity-90' : ''} ${isClub ? 'bg-purple-50 border-purple-300 text-purple-700 opacity-90' : ''}`}>
+                            <button key={s.id} type="button" onClickCapture={(e) => { e.stopPropagation(); if (isNormal && isAbsent) handleCheckIn(s.id); }} className={`relative flex flex-col items-center justify-center rounded-2xl border-2 transition-all duration-300 shadow-sm group w-full h-full overflow-hidden ${isAbsent && isNormal ? 'bg-white border-slate-200 text-slate-600 hover:border-pink-300 hover:bg-pink-50 hover:-translate-y-0.5 cursor-pointer' : 'cursor-default'} ${s.status === 'on-time' ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : ''} ${isLate ? 'bg-red-50 border-red-300 text-red-700' : ''} ${isLeave ? 'bg-orange-50 border-orange-300 text-orange-700 opacity-90' : ''} ${isClub ? 'bg-purple-50 border-purple-300 text-purple-700 opacity-90' : ''}`}>
                               <span className="text-xl md:text-3xl font-black mb-0.5 opacity-100 pointer-events-none">{s.id}</span>
                               {s.name && <span className="text-[13px] md:text-[16px] font-black mb-0.5 truncate w-full px-1 leading-tight text-center tracking-wider pointer-events-none">{s.name}</span>}
                               <span className={`text-[9px] md:text-[11px] font-black px-1.5 md:px-2 py-0.5 rounded-full tracking-wide shrink-0 pointer-events-none ${isAbsent ? 'bg-slate-100 text-slate-400' : 'bg-white/80 shadow-sm'}`}>{isLeave ? '請假' : isClub ? '社團' : (s.arrivalTime || '未到')}</span>
@@ -539,40 +521,38 @@
                   </section>
                 )}
 
-                {/* 🔧 修改位置：增加 hidden lg:flex，讓分隔拉伸條在手機版時自動隱藏不顯示 */}
                 {settings.viewMode === 'both' && (
-                  <div className="w-4 hidden lg:flex items-center justify-center cursor-col-resize group z-20 touch-none" onMouseDown={() => setIsDraggingH(true)} onTouchStart={() => setIsDraggingH(true)}>
+                  <div className="w-4 flex items-center justify-center cursor-col-resize group z-20 touch-none" onMouseDown={() => setIsDraggingH(true)} onTouchStart={() => setIsDraggingH(true)}>
                     <div className={`h-24 w-2 rounded-full transition-colors ${isDraggingH ? 'bg-pink-400' : 'bg-pink-200 group-hover:bg-pink-300 shadow-sm'}`} />
                   </div>
                 )}
 
                 {(settings.viewMode === 'both' || settings.viewMode === 'blackboard') && (
-                  /* 🔧 修改位置：動態調整黑板區寬度，手機版或特定模式下直接 100% 撐滿 */
-                  <section id="right-pane-container" style={{ width: (isMobile || settings.viewMode === 'blackboard') ? '100%' : `${100 - leftPaneWidth}%` }} className="flex flex-col relative w-full lg:w-auto shrink-0">
-                    <div className="flex-1 bg-[#2b3a2f] rounded-3xl shadow-2xl border-[12px] md:border-[16px] border-[#7d5030] relative overflow-hidden flex flex-col box-border">
+                  <section id="right-pane-container" style={{ width: settings.viewMode === 'blackboard' ? '100%' : `${100 - leftPaneWidth}%` }} className="flex flex-col relative">
+                    <div className="flex-1 bg-[#2b3a2f] rounded-3xl shadow-2xl border-[16px] border-[#7d5030] relative overflow-hidden flex flex-col box-border">
                       <div className="absolute inset-0 opacity-20 pointer-events-none mix-blend-screen bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"></div>
                       
-                      <div className="px-4 md:px-6 pt-5 pb-2 flex flex-col xl:flex-row xl:items-center justify-between gap-4 z-10 shrink-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 md:gap-4">
+                      <div className="px-6 pt-5 pb-2 flex flex-col xl:flex-row xl:items-center justify-between gap-4 z-10 shrink-0">
+                        <div className="flex flex-wrap items-center gap-4">
                           <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-2 drop-shadow-md tracking-wider"><Star className="text-[#ffd54f] fill-current w-7 h-7 md:w-8 md:h-8 pointer-events-none" /> 今日聯絡簿</h2>
-                          <div className="flex items-center justify-between bg-black/20 rounded-full p-1 border border-white/10 shadow-inner sm:ml-2">
-                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getTime() - 86400000)); }} className="px-3 py-1.5 md:px-5 md:py-2.5 rounded-full hover:bg-white/20 text-white/90 text-sm md:text-base font-bold transition-colors">前一天</button>
-                            <div className="text-[#ffd54f] font-black text-sm md:text-xl px-2 drop-shadow-md tracking-wide pointer-events-none whitespace-nowrap">{viewDate.getMonth() + 1}月{viewDate.getDate()}日 (星期{getWeekdayString(viewDate)})</div>
-                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getTime() + 86400000)); }} className="px-3 py-1.5 md:px-5 md:py-2.5 rounded-full hover:bg-white/20 text-white/90 text-sm md:text-base font-bold transition-colors">後一天</button>
+                          <div className="flex items-center bg-black/20 rounded-full p-1 border border-white/10 shadow-inner ml-2">
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getTime() - 86400000)); }} className="px-4 py-2 md:px-5 md:py-2.5 rounded-full hover:bg-white/20 text-white/90 text-sm md:text-base font-bold transition-colors">前一天</button>
+                            <div className="text-[#ffd54f] font-black text-lg md:text-xl px-2 drop-shadow-md tracking-wide pointer-events-none">{viewDate.getMonth() + 1}月{viewDate.getDate()}日 (星期{getWeekdayString(viewDate)})</div>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getTime() + 86400000)); }} className="px-4 py-2 md:px-5 md:py-2.5 rounded-full hover:bg-white/20 text-white/90 text-sm md:text-base font-bold transition-colors">後一天</button>
                           </div>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 md:gap-3">
                           <div className="flex items-center bg-white/10 rounded-lg border border-white/20 overflow-hidden shadow-sm">
-                             <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: Math.max(16, (settings.cbFontSize || 32) - 2)}); }} className="px-3 py-1.5 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A-</button>
+                             <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: Math.max(16, (settings.cbFontSize || 32) - 2)}); }} className="px-4 py-2 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A-</button>
                              <span className="px-2 text-white/90 font-mono text-sm pointer-events-none">{settings.cbFontSize || 32}</span>
-                             <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: (settings.cbFontSize || 32) + 2}); }} className="px-3 py-1.5 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A+</button>
+                             <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: (settings.cbFontSize || 32) + 2}); }} className="px-4 py-2 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A+</button>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showListNumber: !settings.showListNumber}); }} className={`px-3 py-1.5 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showListNumber ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>序號</button>
-                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showTasks: !settings.showTasks}); }} className={`px-3 py-1.5 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showTasks ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>任務</button>
-                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbDirection: settings.cbDirection==='horizontal'?'vertical':'horizontal'}); }} className={`px-3 py-1.5 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.cbDirection==='vertical' ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>{settings.cbDirection==='vertical' ? '直式' : '橫式'}</button>
-                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }} className={`px-4 py-1.5 md:px-6 md:py-2.5 rounded-lg text-sm md:text-base font-black transition-all shadow-md ml-1 ${isEditing ? 'bg-[#ffd54f] text-[#6b4423]' : 'bg-[#ffd54f]/90 hover:bg-[#ffd54f] text-[#6b4423]'}`}>{isEditing ? '完成' : '編輯'}</button>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showListNumber: !settings.showListNumber}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showListNumber ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>序號</button>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showTasks: !settings.showTasks}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showTasks ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>任務</button>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbDirection: settings.cbDirection==='horizontal'?'vertical':'horizontal'}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.cbDirection==='vertical' ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>{settings.cbDirection==='vertical' ? '直式' : '橫式'}</button>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }} className={`px-5 py-2 md:px-6 md:py-2.5 rounded-lg text-sm md:text-base font-black transition-all shadow-md ml-1 ${isEditing ? 'bg-[#ffd54f] text-[#6b4423]' : 'bg-[#ffd54f]/90 hover:bg-[#ffd54f] text-[#6b4423]'}`}>{isEditing ? '完成' : '編輯'}</button>
                           </div>
                         </div>
                       </div>
@@ -580,15 +560,14 @@
                       <div className="mx-8 border-b-2 border-solid rounded-full border-white/20 my-1 z-10 shrink-0 pointer-events-none"></div>
 
                       <div id="content-area-container" className={`flex-1 flex overflow-hidden z-10 relative ${settings.cbDirection === 'vertical' ? 'flex-row-reverse' : 'flex-col'}`}>
-                        {/* 🔧 修改位置：微調手機版內距縮排，並在大螢幕套用 grid 排版，手機版使用彈性區塊 */}
-                        <div className={`flex-1 overflow-auto custom-scrollbar relative ${settings.cbDirection === 'vertical' ? 'px-4 md:px-8 py-4' : 'px-4 md:px-10 py-4'}`}>
+                        <div className={`flex-1 overflow-auto custom-scrollbar relative ${settings.cbDirection === 'vertical' ? 'px-8 py-4' : 'px-10 py-4'}`}>
                           {isEditing ? (
                             <textarea className={`w-full h-full bg-black/20 rounded-xl p-4 resize-none outline-none text-[#f8f9fa] placeholder-white/30 text-xl border border-white/10 ${settings.cbFont === 'zhuyinOnly' ? 'font-sans' : getFontClass()}`} style={{ writingMode: settings.cbDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb', letterSpacing: settings.cbFont === 'bopomofo' ? '0.1em' : '0.05em' }} value={contactBookData[currentViewDateKey] || ''} onChange={(e) => setContactBookData({...contactBookData, [currentViewDateKey]: e.target.value})} placeholder="請輸入聯絡簿內容，每行一項。&#10;儲存後會自動加上黃色圓圈序號喔！" spellCheck="false" />
                           ) : (
-                            <div className={`text-[#f8f9fa] w-full h-full ${getFontClass()}`} style={{ fontSize: `${settings.cbFontSize || 32}px`, writingMode: settings.cbDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb', lineHeight: (settings.cbDirection === 'vertical' && settings.cbFont === 'bopomofo') ? 2.5 : 1.8, textShadow: '1px 1px 2px rgba(0,0,0,0.5)', ...(settings.cbDirection === 'horizontal' ? (isMobile ? { display: 'flex', flexDirection: 'column', rowGap: '1rem' } : { display: 'grid', gridTemplateRows: 'repeat(4, auto)', gridAutoFlow: 'column', columnGap: '4rem', rowGap: '1.5rem', alignContent: 'start' }) : {}) }}>
+                            <div className={`text-[#f8f9fa] w-full h-full ${getFontClass()}`} style={{ fontSize: `${settings.cbFontSize || 32}px`, writingMode: settings.cbDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb', lineHeight: (settings.cbDirection === 'vertical' && settings.cbFont === 'bopomofo') ? 2.5 : 1.8, textShadow: '1px 1px 2px rgba(0,0,0,0.5)', ...(settings.cbDirection === 'horizontal' ? { display: 'grid', gridTemplateRows: 'repeat(4, auto)', gridAutoFlow: 'column', columnGap: '4rem', rowGap: '1.5rem', alignContent: 'start' } : {}) }}>
                               {cbItems.map((item, index) => (
-                                <div key={index} className={`flex break-inside-avoid ${settings.cbDirection === 'vertical' ? 'items-center ml-4 md:ml-10 mb-0' : 'items-center gap-2 md:gap-3'}`}>
-                                  {settings.showListNumber && <div className="shrink-0 rounded-full bg-[#ffd54f] text-[#2b3a2f] flex items-center justify-center font-black shadow-sm font-sans pointer-events-none" style={{ width: `${(settings.cbFontSize || 32) * 1.1}px`, height: `${(settings.cbFontSize || 32) * 1.1}px`, fontSize: `${(settings.cbFontSize || 32) * 0.65}px`, marginTop: '0', marginBottom: settings.cbDirection === 'vertical' ? '0.5em' : '0', writingMode: 'horizontal-tb', letterSpacing: 'normal' }}>{index + 1}</div>}
+                                <div key={index} className={`flex break-inside-avoid ${settings.cbDirection === 'vertical' ? 'items-center ml-10 mb-0' : 'items-center gap-3'}`}>
+                                  {settings.showListNumber && <div className="shrink-0 rounded-full bg-[#ffd54f] text-[#2b3a2f] flex items-center justify-center font-black shadow-sm font-sans pointer-events-none" style={{ width: `${(settings.cbFontSize || 32) * 1.2}px`, height: `${(settings.cbFontSize || 32) * 1.2}px`, fontSize: `${(settings.cbFontSize || 32) * 0.7}px`, marginTop: '0', marginBottom: settings.cbDirection === 'vertical' ? '0.5em' : '0', writingMode: 'horizontal-tb', letterSpacing: 'normal' }}>{index + 1}</div>}
                                   <div className="leading-snug pointer-events-none" style={{ letterSpacing: settings.cbFont === 'bopomofo' ? '0.1em' : '0.05em' }}>{renderText(item)}</div>
                                 </div>
                               ))}
@@ -597,24 +576,22 @@
                           )}
                         </div>
 
-                        {/* 🔧 修改位置：增加 !isMobile 限制。在手機版時自動隱藏任務分割線（因為寬高固定或自動，不允許拖拽防衝突） */}
-                        {settings.showTasks && !isMobile && (
+                        {settings.showTasks && (
                           <div className={`${settings.cbDirection === 'vertical' ? 'w-6 h-full cursor-col-resize flex flex-col' : 'w-full h-6 cursor-row-resize flex flex-row'} justify-center items-center group z-30 shrink-0 touch-none ${settings.cbDirection === 'horizontal' ? 'mt-2' : ''}`} onMouseDown={(e) => { e.preventDefault(); if (settings.cbDirection === 'vertical') setIsDraggingTaskW(true); else setIsDraggingV(true); }} onTouchStart={(e) => { if (settings.cbDirection === 'vertical') setIsDraggingTaskW(true); else setIsDraggingV(true); }} title={settings.cbDirection === 'vertical' ? "按住拖曳調整任務區寬度" : "按住拖曳調整任務區高度"}>
                             <div className={`${settings.cbDirection === 'vertical' ? 'border-l-[4px] h-1/2' : 'border-b-[4px] w-1/2'} border-solid rounded-full transition-colors ${ (settings.cbDirection === 'vertical' ? isDraggingTaskW : isDraggingV) ? 'border-[#ffd54f]' : 'border-white/20 group-hover:border-[#ffd54f]/60'}`}></div>
                           </div>
                         )}
 
                         {settings.showTasks && (
-                          /* 🔧 修改位置：調整任務欄高度寬度樣式。若是手機版，寬度一律 100%、高度調整為自動(包含內距與上邊距)，不再套用桌機版拉伸的高度 */
-                          <div className={`flex flex-col relative shrink-0 transition-all duration-75 ${settings.cbDirection === 'vertical' ? 'pl-4 md:pl-8 pr-2 pt-4 pb-6 md:pb-10' : 'px-4 md:px-10 pb-6 md:pb-10'}`} style={isMobile ? { width: '100%', height: 'auto', marginTop: '1.5rem' } : (settings.cbDirection === 'vertical' ? { width: `${taskWidth}%`, height: '100%' } : { height: `${taskHeight}%` })}>
+                          <div className={`flex flex-col relative shrink-0 transition-all duration-75 ${settings.cbDirection === 'vertical' ? 'pl-8 pr-2 pt-4 pb-10' : 'px-10 pb-10'}`} style={settings.cbDirection === 'vertical' ? { width: `${taskWidth}%`, height: '100%' } : { height: `${taskHeight}%` }}>
                              <div className="inline-flex items-center bg-[#b89947] text-[#fff8e1] px-3 py-1 rounded-md text-sm font-bold mb-4 shadow-sm w-fit gap-1 border border-[#ffd54f]/30 shrink-0 font-sans whitespace-nowrap pointer-events-none"><Star size={14} className="fill-current text-[#ffd54f]"/> 早自習任務 <span className="opacity-80 ml-1">({settings.taskEndTime} 前)</span></div>
                              {isEditing ? (
-                                <textarea className={`w-full min-h-[120px] h-full bg-black/20 rounded-xl p-3 resize-none outline-none text-[#f8f9fa] placeholder-white/30 border border-white/10 custom-scrollbar ${settings.cbFont === 'zhuyinOnly' ? 'font-sans' : getFontClass()}`} style={{ letterSpacing: settings.cbFont === 'bopomofo' ? '0.1em' : '0.05em', writingMode: settings.cbDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb', fontSize: `${settings.cbFontSize || 32}px` }} value={taskData[currentViewDateKey] || ''} onChange={(e) => setTaskData({...taskData, [currentViewDateKey]: e.target.value})} placeholder="請輸入任務，每行一項" spellCheck="false" />
+                                <textarea className={`w-full h-full bg-black/20 rounded-xl p-3 resize-none outline-none text-[#f8f9fa] placeholder-white/30 border border-white/10 custom-scrollbar ${settings.cbFont === 'zhuyinOnly' ? 'font-sans' : getFontClass()}`} style={{ letterSpacing: settings.cbFont === 'bopomofo' ? '0.1em' : '0.05em', writingMode: settings.cbDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb', fontSize: `${settings.cbFontSize || 32}px` }} value={taskData[currentViewDateKey] || ''} onChange={(e) => setTaskData({...taskData, [currentViewDateKey]: e.target.value})} placeholder="請輸入任務，每行一項" spellCheck="false" />
                              ) : (
-                                <div className={`text-white/90 w-full h-full overflow-auto custom-scrollbar ${getFontClass()}`} style={{ fontSize: `${settings.cbFontSize || 32}px`, textShadow: '1px 1px 2px rgba(0,0,0,0.5)', writingMode: settings.cbDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb', lineHeight: (settings.cbDirection === 'vertical' && settings.cbFont === 'bopomofo') ? 2.5 : 1.8, ...(settings.cbDirection === 'horizontal' ? { display: 'flex', flexType: 'wrap', flexDirection: 'column', rowGap: '1rem' } : {}) }}>
+                                <div className={`text-white/90 w-full h-full overflow-auto custom-scrollbar ${getFontClass()}`} style={{ fontSize: `${settings.cbFontSize || 32}px`, textShadow: '1px 1px 2px rgba(0,0,0,0.5)', writingMode: settings.cbDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb', lineHeight: (settings.cbDirection === 'vertical' && settings.cbFont === 'bopomofo') ? 2.5 : 1.8, ...(settings.cbDirection === 'horizontal' ? { display: 'flex', flexWrap: 'wrap', columnGap: '2rem', rowGap: '1rem', alignContent: 'start' } : {}) }}>
                                   {taskItems.map((item, index) => (
-                                     <div key={index} className={`flex break-inside-avoid ${settings.cbDirection === 'vertical' ? 'items-center ml-4 md:ml-8 mb-0' : 'items-center gap-2'}`}>
-                                       <div className="w-4 h-4 border-[3px] border-[#ffd54f] rounded-sm shrink-0 pointer-events-none" style={{ marginTop: '0', marginBottom: settings.cbDirection === 'vertical' ? '0.5rem' : '0' }}></div>
+                                     <div key={index} className={`flex break-inside-avoid ${settings.cbDirection === 'vertical' ? 'items-center ml-8 mb-0' : 'items-center gap-2'}`}>
+                                       <div className="w-5 h-5 border-[3px] border-[#ffd54f] rounded-sm shrink-0 pointer-events-none" style={{ marginTop: '0', marginBottom: settings.cbDirection === 'vertical' ? '0.5rem' : '0' }}></div>
                                        <span className="leading-snug pointer-events-none" style={{ letterSpacing: settings.cbFont === 'bopomofo' ? '0.1em' : '0.05em' }}>{renderText(item)}</span>
                                      </div>
                                   ))}
@@ -624,8 +601,7 @@
                           </div>
                         )}
                       </div>
-                      {/* 🔧 修改位置：手機版粉筆槽稍微縮減左右 padding 避免超出框線 */}
-                      <div className="absolute bottom-0 left-0 right-0 h-6 bg-[#4a3018] border-t-[3px] border-[#3a2010] flex items-end px-6 md:px-12 pb-1 gap-4 md:gap-6 z-20 shadow-[inset_0_4px_6px_rgba(0,0,0,0.4)] pointer-events-none"><div className="w-12 h-2 bg-white rounded-full shadow-sm opacity-90 rotate-1"></div><div className="w-8 h-2 bg-pink-300 rounded-full shadow-sm opacity-90 -rotate-2"></div><div className="w-10 h-2 bg-sky-300 rounded-full shadow-sm opacity-90 rotate-1"></div></div>
+                      <div className="absolute bottom-0 left-0 right-0 h-6 bg-[#4a3018] border-t-[3px] border-[#3a2010] flex items-end px-12 pb-1 gap-6 z-20 shadow-[inset_0_4px_6px_rgba(0,0,0,0.4)] pointer-events-none"><div className="w-12 h-2 bg-white rounded-full shadow-sm opacity-90 rotate-1"></div><div className="w-8 h-2 bg-pink-300 rounded-full shadow-sm opacity-90 -rotate-2"></div><div className="w-10 h-2 bg-sky-300 rounded-full shadow-sm opacity-90 rotate-1"></div></div>
                     </div>
                   </section>
                 )}
@@ -637,7 +613,6 @@
 
               {isSettingsOpen && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[999999] p-4">
-                  {/* 🔧 修改位置：加上 max-h-[90vh] 及 overflow-y-auto，確保設定中心彈窗在低解析度或小手機螢幕上不會爆開，可以正常下拉滑動 */}
                   <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
                     <div className="p-5 border-b flex items-center justify-between shrink-0 bg-slate-50">
                       <h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><Settings className="text-pink-500 pointer-events-none"/> 設定中心</h3>
@@ -676,8 +651,7 @@
                       </section>
                       <section>
                         <h4 className="text-sm md:text-base font-bold text-slate-400 mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">🔤 聯絡簿顯示字體</h4>
-                        {/* 🔧 修改位置：字體選擇項目修改為 grid-cols-2 手機顯示雙排，以防字體名稱過長超出畫面 */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5 p-2 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5 p-2 bg-slate-50 rounded-xl border border-slate-100">
                           <label className="flex-1 cursor-pointer"><input type="radio" name="cbFont" value="sans" className="peer hidden" checked={settings.cbFont === 'sans'} onChange={(e)=>setSettings({...settings, cbFont: e.target.value})} /><div className="text-center py-3 h-full flex items-center justify-center rounded-lg text-sm md:text-base font-bold text-slate-500 peer-checked:bg-white peer-checked:text-pink-600 peer-checked:shadow-sm transition-all border border-transparent peer-checked:border-pink-100">黑體(預設)</div></label>
                           <label className="flex-1 cursor-pointer"><input type="radio" name="cbFont" value="kai" className="peer hidden" checked={settings.cbFont === 'kai'} onChange={(e)=>setSettings({...settings, cbFont: e.target.value})} /><div className="text-center py-3 h-full flex items-center justify-center rounded-lg text-sm md:text-base font-bold text-slate-500 font-kai peer-checked:bg-white peer-checked:text-pink-600 peer-checked:shadow-sm transition-all border border-transparent peer-checked:border-pink-100">標楷體</div></label>
                           <label className="flex-1 cursor-pointer"><input type="radio" name="cbFont" value="bopomofo" className="peer hidden" checked={settings.cbFont === 'bopomofo'} onChange={(e)=>setSettings({...settings, cbFont: e.target.value})} /><div className="text-center py-2 px-1 h-full flex flex-col items-center justify-center rounded-lg font-bold text-slate-500 font-bopomofo peer-checked:bg-white peer-checked:text-pink-600 peer-checked:shadow-sm transition-all border border-transparent peer-checked:border-pink-100 leading-tight"><span className="text-sm md:text-base">含漢字注音</span><span className="text-[10px] md:text-xs font-sans opacity-70 mt-0.5">(三種字型)</span></div></label>
