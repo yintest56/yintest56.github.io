@@ -1,0 +1,81 @@
+========================================
+  ⭐ 學生打卡＆數位聯絡簿 — 權限密碼表
+========================================
+
+【第一層：管理者 (最高權限，限 1 人)】
+帳號：admin
+密碼：Admin@2026!
+
+【第二層：聯絡簿編輯者 (最多 10 人，各有獨立帳密)】
+帳號：editor01　密碼：Editor01#pass
+帳號：editor02　密碼：Editor02#pass
+帳號：editor03　密碼：Editor03#pass
+帳號：editor04　密碼：Editor04#pass
+帳號：editor05　密碼：Editor05#pass
+帳號：editor06　密碼：Editor06#pass
+帳號：editor07　密碼：Editor07#pass
+帳號：editor08　密碼：Editor08#pass
+帳號：editor09　密碼：Editor09#pass
+帳號：editor10　密碼：Editor10#pass
+
+【第三層：學生打卡 (依座號，每人獨立密碼)】
+格式：座號 → 密碼
+01 → Stu001$pk
+02 → Stu002$pk
+03 → Stu003$pk
+04 → Stu004$pk
+05 → Stu005$pk
+06 → Stu006$pk
+07 → Stu007$pk
+08 → Stu008$pk
+09 → Stu009$pk
+10 → Stu010$pk
+11 → Stu011$pk
+12 → Stu012$pk
+13 → Stu013$pk
+14 → Stu014$pk
+15 → Stu015$pk
+16 → Stu016$pk
+17 → Stu017$pk
+18 → Stu018$pk
+19 → Stu019$pk
+20 → Stu020$pk
+21 → Stu021$pk
+22 → Stu022$pk
+23 → Stu023$pk
+24 → Stu024$pk
+25 → Stu025$pk
+26 → Stu026$pk
+27 → Stu027$pk
+28 → Stu028$pk
+29 → Stu029$pk
+30 → Stu030$pk
+31 → Stu031$pk
+32 → Stu032$pk
+33 → Stu033$pk
+34 → Stu034$pk
+35 → Stu035$pk
+36 → Stu036$pk
+37 → Stu037$pk
+38 → Stu038$pk
+39 → Stu039$pk
+40 → Stu040$pk
+41 → Stu041$pk
+42 → Stu042$pk
+43 → Stu043$pk
+44 → Stu044$pk
+45 → Stu045$pk
+46 → Stu046$pk
+47 → Stu047$pk
+48 → Stu048$pk
+49 → Stu049$pk
+50 → Stu050$pk
+
+========================================
+  ⚠️ 注意事項
+========================================
+• cord.txt 為唯一密碼來源，請妥善保管，勿外流。
+• 系統啟動時會自動讀取本檔案，密碼不會寫入 index.html。
+• 如需更改密碼，直接修改本檔案後重新整理網頁即可生效。
+• 學生座號超過 50 號請依格式自行新增：座號 → Stu0XX$pk
+========================================

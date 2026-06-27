@@ -35,13 +35,224 @@
         .font-kai { font-family: '標楷體', 'DFKai-SB', 'BiauKai', 'Kaiti TC', serif; }
         textarea { word-break: break-all; }
     </style>
+
+    <style id="auth-styles">
+        #auth-overlay { position:fixed;inset:0;z-index:9999999;background:linear-gradient(135deg,#1e293b 0%,#312e81 100%);display:flex;align-items:center;justify-content:center;font-family:sans-serif; }
+        #auth-overlay.hidden { display:none; }
+        .auth-card { background:white;border-radius:24px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 40px 80px rgba(0,0,0,0.5);text-align:center; }
+        .auth-title { font-size:22px;font-weight:900;color:#1e293b;margin-bottom:4px; }
+        .auth-subtitle { font-size:13px;color:#94a3b8;margin-bottom:28px; }
+        .auth-tabs { display:flex;gap:6px;background:#f1f5f9;border-radius:12px;padding:4px;margin-bottom:24px; }
+        .auth-tab { flex:1;padding:8px 4px;border:none;border-radius:9px;cursor:pointer;font-size:12px;font-weight:700;color:#64748b;background:transparent;transition:all .2s; }
+        .auth-tab.active { background:white;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+        .auth-input { width:100%;box-sizing:border-box;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;margin-bottom:12px;outline:none;transition:border .2s; }
+        .auth-input:focus { border-color:#6366f1; }
+        .auth-btn { width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px;transition:all .2s; }
+        .auth-btn-primary { background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;box-shadow:0 4px 15px rgba(99,102,241,0.4); }
+        .auth-btn-primary:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.5); }
+        .auth-btn-view { background:#f1f5f9;color:#64748b;margin-top:10px; }
+        .auth-btn-view:hover { background:#e2e8f0; }
+        .auth-error { color:#ef4444;font-size:13px;font-weight:600;margin-top:8px;min-height:20px; }
+        .auth-badge { display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;margin-bottom:16px; }
+        .badge-admin { background:#fef3c7;color:#d97706; }
+        .badge-editor { background:#ede9fe;color:#7c3aed; }
+        .badge-student { background:#dcfce7;color:#16a34a; }
+        .badge-viewer { background:#f1f5f9;color:#64748b; }
+        #role-indicator { position:fixed;top:0;left:0;right:0;z-index:999998;display:flex;align-items:center;justify-between;padding:4px 16px;font-size:12px;font-weight:700;gap:8px; }
+        #role-indicator.role-admin { background:#fef3c7;color:#92400e;border-bottom:2px solid #fcd34d; }
+        #role-indicator.role-editor { background:#ede9fe;color:#5b21b6;border-bottom:2px solid #a78bfa; }
+        #role-indicator.role-student { background:#dcfce7;color:#166534;border-bottom:2px solid #86efac; }
+        #role-indicator.role-viewer { background:#f1f5f9;color:#475569;border-bottom:2px solid #cbd5e1; }
+        .ri-left { display:flex;align-items:center;gap:8px; }
+        .ri-logout { padding:2px 10px;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;background:rgba(0,0,0,0.1);color:inherit;margin-left:auto; }
+        .ri-logout:hover { background:rgba(0,0,0,0.2); }
+    </style>
 </head>
 <body>
+
+    <!-- 權限登入介面 -->
+    <div id="auth-overlay">
+      <div class="auth-card">
+        <div style="font-size:36px;margin-bottom:8px;">⭐</div>
+        <div class="auth-title">學生打卡＆數位聯絡簿</div>
+        <div class="auth-subtitle">請選擇身份並登入</div>
+        <div class="auth-tabs">
+          <button class="auth-tab active" onclick="switchTab('admin')" id="tab-admin">👑 管理者</button>
+          <button class="auth-tab" onclick="switchTab('editor')" id="tab-editor">✏️ 編輯者</button>
+          <button class="auth-tab" onclick="switchTab('student')" id="tab-student">🎒 學生打卡</button>
+        </div>
+        <div id="form-admin">
+          <input class="auth-input" type="text" id="admin-user" placeholder="帳號" autocomplete="username"/>
+          <input class="auth-input" type="password" id="admin-pass" placeholder="密碼" autocomplete="current-password"/>
+          <button class="auth-btn auth-btn-primary" onclick="loginAdmin()">登入管理者</button>
+        </div>
+        <div id="form-editor" style="display:none">
+          <input class="auth-input" type="text" id="editor-user" placeholder="帳號 (editor01 ~ editor10)" autocomplete="username"/>
+          <input class="auth-input" type="password" id="editor-pass" placeholder="密碼" autocomplete="current-password"/>
+          <button class="auth-btn auth-btn-primary" onclick="loginEditor()">登入編輯者</button>
+        </div>
+        <div id="form-student" style="display:none">
+          <input class="auth-input" type="number" id="student-id" placeholder="座號 (如：5)" min="1" max="100"/>
+          <input class="auth-input" type="password" id="student-pass" placeholder="密碼" autocomplete="current-password"/>
+          <button class="auth-btn auth-btn-primary" onclick="loginStudent()">打卡登入</button>
+        </div>
+        <div class="auth-error" id="auth-error"></div>
+        <button class="auth-btn auth-btn-view" onclick="enterViewer()">👁 僅觀看（不登入）</button>
+      </div>
+    </div>
+
+    <!-- 角色提示列 -->
+    <div id="role-indicator" style="display:none">
+      <div class="ri-left">
+        <span id="ri-icon"></span>
+        <span id="ri-text"></span>
+      </div>
+      <button class="ri-logout" onclick="logout()">登出</button>
+    </div>
+
     <div id="root"></div>
+
+
+    <script>
+    // ========== 權限系統核心 ==========
+    window._authCredentials = null; // 從 cord.txt 載入
+    window._currentRole = 'none';   // none | viewer | student | editor | admin
+    window._currentStudentId = null;
+
+    // 讀取 cord.txt 並解析密碼
+    async function loadCredentials() {
+      try {
+        const r = await fetch('cord.txt?nocache=' + Date.now());
+        if (!r.ok) throw new Error('無法讀取 cord.txt');
+        const txt = await r.text();
+        const creds = { admin: {}, editors: {}, students: {} };
+        const lines = txt.split('\n').map(l => l.trim()).filter(Boolean);
+        let section = '';
+        for (const line of lines) {
+          if (line.includes('第一層')) { section = 'admin'; continue; }
+          if (line.includes('第二層')) { section = 'editor'; continue; }
+          if (line.includes('第三層')) { section = 'student'; continue; }
+          if (section === 'admin' && line.startsWith('帳號：')) {
+            const user = line.match(/帳號：(\S+)/)?.[1];
+            const pass = line.match(/密碼：(\S+)/)?.[1];
+            if (user && pass) creds.admin = { user, pass };
+          }
+          if (section === 'editor' && line.startsWith('帳號：')) {
+            const user = line.match(/帳號：(\S+)/)?.[1];
+            const pass = line.match(/密碼：(\S+)/)?.[1];
+            if (user && pass) creds.editors[user] = pass;
+          }
+          if (section === 'student' && /^\d+\s*→/.test(line)) {
+            const [idPart, passPart] = line.split('→');
+            const id = parseInt(idPart.trim());
+            const pass = passPart?.trim();
+            if (id && pass) creds.students[id] = pass;
+          }
+        }
+        window._authCredentials = creds;
+      } catch(e) {
+        console.warn('cord.txt 讀取失敗，使用預設空密碼。', e);
+        window._authCredentials = { admin: {}, editors: {}, students: {} };
+      }
+    }
+
+    function switchTab(tab) {
+      ['admin','editor','student'].forEach(t => {
+        document.getElementById('form-' + t).style.display = t === tab ? '' : 'none';
+        document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+      });
+      document.getElementById('auth-error').textContent = '';
+    }
+
+    function showError(msg) { document.getElementById('auth-error').textContent = msg; }
+
+    function activateRole(role, label, icon, studentId) {
+      window._currentRole = role;
+      window._currentStudentId = studentId || null;
+      document.getElementById('auth-overlay').classList.add('hidden');
+      const ri = document.getElementById('role-indicator');
+      ri.style.display = 'flex';
+      ri.className = 'role-' + role;
+      document.getElementById('ri-icon').textContent = icon;
+      document.getElementById('ri-text').textContent = label;
+      // 通知 React app 權限已設定
+      window.dispatchEvent(new CustomEvent('auth-ready', { detail: { role, studentId } }));
+    }
+
+    function loginAdmin() {
+      const u = document.getElementById('admin-user').value.trim();
+      const p = document.getElementById('admin-pass').value;
+      const c = window._authCredentials?.admin;
+      if (c && u === c.user && p === c.pass) {
+        activateRole('admin', '管理者 — 最高權限', '👑');
+      } else { showError('❌ 帳號或密碼錯誤'); }
+    }
+
+    function loginEditor() {
+      const u = document.getElementById('editor-user').value.trim();
+      const p = document.getElementById('editor-pass').value;
+      const editors = window._authCredentials?.editors || {};
+      if (editors[u] && editors[u] === p) {
+        activateRole('editor', '聯絡簿編輯者 (' + u + ')', '✏️');
+      } else { showError('❌ 帳號或密碼錯誤'); }
+    }
+
+    function loginStudent() {
+      const id = parseInt(document.getElementById('student-id').value);
+      const p = document.getElementById('student-pass').value;
+      const students = window._authCredentials?.students || {};
+      if (id && students[id] && students[id] === p) {
+        activateRole('student', '學生打卡 — 座號 ' + id, '🎒', id);
+      } else { showError('❌ 座號或密碼錯誤'); }
+    }
+
+    function enterViewer() {
+      activateRole('viewer', '觀看模式（唯讀）', '👁');
+    }
+
+    function logout() {
+      window._currentRole = 'none';
+      window._currentStudentId = null;
+      document.getElementById('auth-overlay').classList.remove('hidden');
+      document.getElementById('role-indicator').style.display = 'none';
+      window.dispatchEvent(new CustomEvent('auth-logout'));
+    }
+
+    // 支援 Enter 鍵送出
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const overlay = document.getElementById('auth-overlay');
+      if (overlay && !overlay.classList.contains('hidden')) {
+        const active = document.querySelector('.auth-tab.active');
+        if (active?.id === 'tab-admin') loginAdmin();
+        else if (active?.id === 'tab-editor') loginEditor();
+        else if (active?.id === 'tab-student') loginStudent();
+      }
+    });
+
+    // 啟動：載入密碼後顯示登入介面
+    loadCredentials();
+    </script>
 
     <!-- 💡 使用自訂的 react-classic preset -->
     <script type="text/babel" data-presets="react-classic">
+
         const { useState, useEffect, useCallback } = React;
+
+        // ===== 權限系統整合 =====
+        function useAuthRole() {
+          const [role, setRole] = React.useState(window._currentRole || 'none');
+          const [studentId, setStudentId] = React.useState(window._currentStudentId || null);
+          React.useEffect(() => {
+            const onReady = (e) => { setRole(e.detail.role); setStudentId(e.detail.studentId || null); };
+            const onLogout = () => { setRole('none'); setStudentId(null); };
+            window.addEventListener('auth-ready', onReady);
+            window.addEventListener('auth-logout', onLogout);
+            return () => { window.removeEventListener('auth-ready', onReady); window.removeEventListener('auth-logout', onLogout); };
+          }, []);
+          return { role, studentId };
+        }
+
 
         // --- 內建圖示庫 (確保單檔運行絕對穩定) ---
         const IconBase = ({ size = 24, className = "", children }) => (
@@ -52,9 +263,6 @@
         const RotateCcw = (p) => <IconBase {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></IconBase>;
         const X = (p) => <IconBase {...p}><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></IconBase>;
         const Unlock = (p) => <IconBase {...p}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></IconBase>;
-        const Lock = (p) => <IconBase {...p}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></IconBase>;
-        const LogOut = (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></IconBase>;
-        const Shield = (p) => <IconBase {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></IconBase>;
         const Monitor = (p) => <IconBase {...p}><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></IconBase>;
         const Layout = (p) => <IconBase {...p}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></IconBase>;
         const Maximize2 = (p) => <IconBase {...p}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></IconBase>;
@@ -119,6 +327,10 @@
         };
 
         function SchoolCheckInKing() {
+          const { role: currentRole, studentId: myStudentId } = useAuthRole();
+          const canAdmin = currentRole === 'admin';
+          const canEdit = currentRole === 'admin' || currentRole === 'editor';
+          const canCheckIn = currentRole === 'admin' || currentRole === 'student';
           const [isMounted, setIsMounted] = useState(false);
           useEffect(() => {
             const timer = setTimeout(() => { setIsMounted(true); }, 200); 
@@ -153,31 +365,6 @@
           const [isSettingsOpen, setIsSettingsOpen] = useState(false);
           const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
           const [unlockId, setUnlockId] = useState('');
-
-          // --- 管理者權限系統 ---
-          const ADMIN_PASSWORD = 'teacher2026'; // 可在此修改管理者密碼
-          const [isAdmin, setIsAdmin] = useLocalStorage('king-v6-admin-session', false);
-          const [isLoginOpen, setIsLoginOpen] = useState(false);
-          const [loginInput, setLoginInput] = useState('');
-          const [loginError, setLoginError] = useState('');
-
-          const handleAdminLogin = () => {
-            if (loginInput === ADMIN_PASSWORD) {
-              setIsAdmin(true);
-              setIsLoginOpen(false);
-              setLoginInput('');
-              setLoginError('');
-              showToast('✅ 管理者模式已啟用！');
-            } else {
-              setLoginError('密碼錯誤，請再試一次。');
-              setLoginInput('');
-            }
-          };
-
-          const handleAdminLogout = () => {
-            setIsAdmin(false);
-            showToast('🔒 已退出管理者模式');
-          };
 
           const formatDateKey = useCallback((date) => {
             if (!date) return new Date().toISOString().split('T')[0];
@@ -278,22 +465,23 @@
             };
             const handleMouseUp = () => { setIsDraggingH(false); setIsDraggingV(false); setIsDraggingTaskW(false); };
             
-            const handleTouchMove = (e) => handleMouseMove({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
             if (isDraggingH || isDraggingV || isDraggingTaskW) {
               document.addEventListener('mousemove', handleMouseMove);
               document.addEventListener('mouseup', handleMouseUp);
-              document.addEventListener('touchmove', handleTouchMove, { passive: false });
+              document.addEventListener('touchmove', (e) => handleMouseMove({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }), { passive: false });
               document.addEventListener('touchend', handleMouseUp);
             }
             return () => {
               document.removeEventListener('mousemove', handleMouseMove);
               document.removeEventListener('mouseup', handleMouseUp);
-              document.removeEventListener('touchmove', handleTouchMove);
+              document.removeEventListener('touchmove', handleMouseMove);
               document.removeEventListener('touchend', handleMouseUp);
             };
           }, [isDraggingH, isDraggingV, isDraggingTaskW]);
 
           const handleCheckIn = useCallback((id) => {
+            if (!canCheckIn) return;
+            if (currentRole === 'student' && id !== myStudentId) return;
             setStudents(prev => prev.map(s => {
               if (s.id !== id || s.type !== 'normal' || s.status !== 'absent') return s;
               const now = new Date();
@@ -495,52 +683,24 @@
                     </button>
                   </div>
                   
-                  {isAdmin && (
-                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsResetConfirmOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-pink-500 rounded-xl text-sm font-bold transition-colors">
-                      <RotateCcw size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">重置</span>
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); exportCSV(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-green-600 rounded-xl text-sm font-bold transition-colors" title="匯出報表">
-                      <FileText size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">CSV報表</span>
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); exportData(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-blue-500 rounded-xl text-sm font-bold transition-colors" title="匯出完整備份">
-                      <Download size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯出</span>
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <label className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-emerald-500 rounded-xl text-sm font-bold transition-colors cursor-pointer m-0 relative overflow-hidden" title="還原備份">
-                      <Upload size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯入</span>
-                      <input type="file" className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer" accept=".json" onChange={(e) => { e.stopPropagation(); handleFileUpload(e); }}/>
-                    </label>
-                  )}
-                  {isAdmin && (
-                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsSettingsOpen(true); }} className="flex items-center gap-2 ml-1 px-5 py-2.5 md:px-6 md:py-3 bg-slate-100 text-slate-700 hover:bg-pink-100 hover:text-pink-600 rounded-xl text-sm font-black transition-colors border border-slate-200 shadow-sm">
-                      <Settings size={20} className="pointer-events-none"/> <span className="pointer-events-none">設定</span>
-                    </button>
-                  )}
-                  {isAdmin ? (
-                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); handleAdminLogout(); }} className="flex items-center gap-2 ml-1 px-5 py-2.5 md:px-6 md:py-3 bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-600 rounded-xl text-sm font-black transition-colors border border-emerald-200 shadow-sm" title="退出管理者模式">
-                      <Shield size={20} className="pointer-events-none"/> <span className="pointer-events-none hidden sm:inline">管理者</span>
-                      <LogOut size={16} className="pointer-events-none opacity-60"/>
-                    </button>
-                  ) : (
-                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsLoginOpen(true); }} className="flex items-center gap-2 ml-1 px-5 py-2.5 md:px-6 md:py-3 bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-600 rounded-xl text-sm font-black transition-colors border border-slate-200 shadow-sm" title="管理者登入">
-                      <Lock size={20} className="pointer-events-none"/> <span className="pointer-events-none hidden sm:inline">登入</span>
-                    </button>
-                  )}
+                  <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canAdmin){showToast("⛔ 僅管理者可重置打卡");return;} setIsResetConfirmOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-pink-500 rounded-xl text-sm font-bold transition-colors">
+                    <RotateCcw size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">重置</span>
+                  </button>
+                  <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canAdmin){showToast("⛔ 僅管理者可匯出報表");return;} exportCSV(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-green-600 rounded-xl text-sm font-bold transition-colors" title="匯出報表">
+                    <FileText size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">CSV報表</span>
+                  </button>
+                  <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canAdmin){showToast("⛔ 僅管理者可匯出備份");return;} exportData(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-blue-500 rounded-xl text-sm font-bold transition-colors" title="匯出完整備份">
+                    <Download size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯出</span>
+                  </button>
+                  <label className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-emerald-500 rounded-xl text-sm font-bold transition-colors cursor-pointer m-0 relative overflow-hidden" title="還原備份">
+                    <Upload size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯入</span>
+                    <input type="file" className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer" accept=".json" onChange={(e) => { e.stopPropagation(); if(!canAdmin){showToast("⛔ 僅管理者可匯入備份");return;} handleFileUpload(e); }}/>
+                  </label>
+                  <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canAdmin){showToast("⛔ 僅管理者可開啟設定");return;} setIsSettingsOpen(true); }} className="flex items-center gap-2 ml-1 px-5 py-2.5 md:px-6 md:py-3 bg-slate-100 text-slate-700 hover:bg-pink-100 hover:text-pink-600 rounded-xl text-sm font-black transition-colors border border-slate-200 shadow-sm">
+                    <Settings size={20} className="pointer-events-none"/> <span className="pointer-events-none">設定</span>
+                  </button>
                 </div>
               </header>
-
-              {!isAdmin && (
-                <div className="flex-none flex items-center justify-center gap-2 bg-amber-50 border-b-2 border-amber-200 py-1.5 px-4 text-amber-700 text-sm font-bold">
-                  <Lock size={14} className="pointer-events-none shrink-0"/> 
-                  <span className="pointer-events-none">觀看模式 — 僅供查閱，如需操作請</span>
-                  <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsLoginOpen(true); }} className="underline font-black hover:text-amber-900 transition-colors">管理者登入</button>
-                </div>
-              )}
 
               <main className="flex-1 flex overflow-hidden p-3 gap-2 relative bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-black/5 z-10">
                 {(settings.viewMode === 'both' || settings.viewMode === 'checkin') && (
@@ -566,7 +726,7 @@
                           if (s.type === 'empty') return <div key={s.id} className="flex items-center justify-center rounded-2xl bg-slate-50 text-slate-200 font-black text-xl border-2 border-dashed border-slate-100 w-full h-full pointer-events-none">{s.id}</div>;
                           const isNormal = s.type === 'normal'; const isLeave = s.type === 'leave'; const isClub = s.type === 'club'; const isAbsent = s.status === 'absent'; const isLate = s.status === 'late';
                           return (
-                            <button key={s.id} type="button" onClickCapture={(e) => { e.stopPropagation(); if (isAdmin && isNormal && isAbsent) handleCheckIn(s.id); }} className={`relative flex flex-col items-center justify-center rounded-2xl border-2 transition-all duration-300 shadow-sm group w-full h-full overflow-hidden ${isAbsent && isNormal && isAdmin ? 'bg-white border-slate-200 text-slate-600 hover:border-pink-300 hover:bg-pink-50 hover:-translate-y-0.5 cursor-pointer' : isAbsent && isNormal ? 'bg-white border-slate-200 text-slate-600 cursor-default' : 'cursor-default'} ${s.status === 'on-time' ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : ''} ${isLate ? 'bg-red-50 border-red-300 text-red-700' : ''} ${isLeave ? 'bg-orange-50 border-orange-300 text-orange-700 opacity-90' : ''} ${isClub ? 'bg-purple-50 border-purple-300 text-purple-700 opacity-90' : ''}`}>
+                            <button key={s.id} type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canCheckIn){showToast('⛔ 請先登入才能打卡');return;} if(currentRole==='student'&&s.id!==myStudentId){showToast('⛔ 只能為自己的座號打卡');return;} if (isNormal && isAbsent) handleCheckIn(s.id); }} className={`relative flex flex-col items-center justify-center rounded-2xl border-2 transition-all duration-300 shadow-sm group w-full h-full overflow-hidden ${isAbsent && isNormal ? 'bg-white border-slate-200 text-slate-600 hover:border-pink-300 hover:bg-pink-50 hover:-translate-y-0.5 cursor-pointer' : 'cursor-default'} ${s.status === 'on-time' ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : ''} ${isLate ? 'bg-red-50 border-red-300 text-red-700' : ''} ${isLeave ? 'bg-orange-50 border-orange-300 text-orange-700 opacity-90' : ''} ${isClub ? 'bg-purple-50 border-purple-300 text-purple-700 opacity-90' : ''}`}>
                               <span className="text-xl md:text-3xl font-black mb-0.5 opacity-100 pointer-events-none">{s.id}</span>
                               {s.name && <span className="text-[13px] md:text-[16px] font-black mb-0.5 truncate w-full px-1 leading-tight text-center tracking-wider pointer-events-none">{s.name}</span>}
                               <span className={`text-[9px] md:text-[11px] font-black px-1.5 md:px-2 py-0.5 rounded-full tracking-wide shrink-0 pointer-events-none ${isAbsent ? 'bg-slate-100 text-slate-400' : 'bg-white/80 shadow-sm'}`}>{isLeave ? '請假' : isClub ? '社團' : (s.arrivalTime || '未到')}</span>
@@ -600,26 +760,17 @@
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                          {isAdmin && (
-                            <div className="flex items-center bg-white/10 rounded-lg border border-white/20 overflow-hidden shadow-sm">
-                               <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: Math.max(16, (settings.cbFontSize || 32) - 2)}); }} className="px-4 py-2 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A-</button>
-                               <span className="px-2 text-white/90 font-mono text-sm pointer-events-none">{settings.cbFontSize || 32}</span>
-                               <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: (settings.cbFontSize || 32) + 2}); }} className="px-4 py-2 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A+</button>
-                            </div>
-                          )}
-                          {!isAdmin && (
-                            <div className="flex items-center bg-white/10 rounded-lg border border-white/20 overflow-hidden shadow-sm px-3 py-2 text-white/50 text-sm font-bold gap-1.5">
-                              <Lock size={14} className="pointer-events-none"/> <span className="pointer-events-none">觀看模式</span>
-                            </div>
-                          )}
-                          {isAdmin && (
-                            <div className="flex items-center gap-1.5">
-                              <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showListNumber: !settings.showListNumber}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showListNumber ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>序號</button>
-                              <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showTasks: !settings.showTasks}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showTasks ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>任務</button>
-                              <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbDirection: settings.cbDirection==='horizontal'?'vertical':'horizontal'}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.cbDirection==='vertical' ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>{settings.cbDirection==='vertical' ? '直式' : '橫式'}</button>
-                              <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }} className={`px-5 py-2 md:px-6 md:py-2.5 rounded-lg text-sm md:text-base font-black transition-all shadow-md ml-1 ${isEditing ? 'bg-[#ffd54f] text-[#6b4423]' : 'bg-[#ffd54f]/90 hover:bg-[#ffd54f] text-[#6b4423]'}`}>{isEditing ? '完成' : '編輯'}</button>
-                            </div>
-                          )}
+                          <div className="flex items-center bg-white/10 rounded-lg border border-white/20 overflow-hidden shadow-sm">
+                             <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: Math.max(16, (settings.cbFontSize || 32) - 2)}); }} className="px-4 py-2 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A-</button>
+                             <span className="px-2 text-white/90 font-mono text-sm pointer-events-none">{settings.cbFontSize || 32}</span>
+                             <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: (settings.cbFontSize || 32) + 2}); }} className="px-4 py-2 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A+</button>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showListNumber: !settings.showListNumber}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showListNumber ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>序號</button>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showTasks: !settings.showTasks}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showTasks ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>任務</button>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbDirection: settings.cbDirection==='horizontal'?'vertical':'horizontal'}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.cbDirection==='vertical' ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>{settings.cbDirection==='vertical' ? '直式' : '橫式'}</button>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canEdit){showToast('⛔ 僅管理者或編輯者可編輯聯絡簿');return;} setIsEditing(!isEditing); }} className={`px-5 py-2 md:px-6 md:py-2.5 rounded-lg text-sm md:text-base font-black transition-all shadow-md ml-1 ${isEditing ? 'bg-[#ffd54f] text-[#6b4423]' : 'bg-[#ffd54f]/90 hover:bg-[#ffd54f] text-[#6b4423]'}`}>{isEditing ? '完成' : '編輯'}</button>
+                          </div>
                         </div>
                       </div>
 
@@ -751,32 +902,6 @@
                   </div>
                 </div>
               )}
-
-              {isLoginOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999999] p-4" onClickCapture={(e) => { if (e.target === e.currentTarget) { setIsLoginOpen(false); setLoginInput(''); setLoginError(''); } }}>
-                  <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
-                    <div className="w-20 h-20 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-6"><Shield size={40} className="pointer-events-none"/></div>
-                    <h3 className="text-xl font-black text-slate-800 mb-1">管理者登入</h3>
-                    <p className="text-slate-400 text-sm mb-6">請輸入管理者密碼以啟用完整功能</p>
-                    <input
-                      type="password"
-                      placeholder="請輸入密碼"
-                      value={loginInput}
-                      onChange={(e) => { setLoginInput(e.target.value); setLoginError(''); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleAdminLogin(); }}
-                      className="w-full p-3 border-2 border-slate-200 rounded-xl text-base text-center mb-2 focus:ring-2 focus:ring-blue-300 outline-none focus:border-blue-300 transition-all font-mono tracking-widest"
-                      autoFocus
-                    />
-                    {loginError && <p className="text-red-500 text-sm font-bold mb-4">{loginError}</p>}
-                    {!loginError && <div className="mb-4"></div>}
-                    <div className="flex gap-4">
-                      <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsLoginOpen(false); setLoginInput(''); setLoginError(''); }} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-xl transition-colors hover:bg-slate-200">取消</button>
-                      <button type="button" onClickCapture={(e) => { e.stopPropagation(); handleAdminLogin(); }} className="flex-1 py-4 bg-blue-500 text-white font-black rounded-xl shadow-lg transition-colors hover:bg-blue-600">登入</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
             </div>
           );
         }
