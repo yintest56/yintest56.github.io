@@ -35,222 +35,174 @@
         .font-kai { font-family: '標楷體', 'DFKai-SB', 'BiauKai', 'Kaiti TC', serif; }
         textarea { word-break: break-all; }
     </style>
-
-    <style id="auth-styles">
-        #auth-overlay { position:fixed;inset:0;z-index:9999999;background:linear-gradient(135deg,#1e293b 0%,#312e81 100%);display:flex;align-items:center;justify-content:center;font-family:sans-serif; }
-        #auth-overlay.hidden { display:none; }
-        .auth-card { background:white;border-radius:24px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 40px 80px rgba(0,0,0,0.5);text-align:center; }
-        .auth-title { font-size:22px;font-weight:900;color:#1e293b;margin-bottom:4px; }
-        .auth-subtitle { font-size:13px;color:#94a3b8;margin-bottom:28px; }
-        .auth-tabs { display:flex;gap:6px;background:#f1f5f9;border-radius:12px;padding:4px;margin-bottom:24px; }
-        .auth-tab { flex:1;padding:8px 4px;border:none;border-radius:9px;cursor:pointer;font-size:12px;font-weight:700;color:#64748b;background:transparent;transition:all .2s; }
-        .auth-tab.active { background:white;color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-        .auth-input { width:100%;box-sizing:border-box;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;margin-bottom:12px;outline:none;transition:border .2s; }
-        .auth-input:focus { border-color:#6366f1; }
-        .auth-btn { width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px;transition:all .2s; }
-        .auth-btn-primary { background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;box-shadow:0 4px 15px rgba(99,102,241,0.4); }
-        .auth-btn-primary:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.5); }
-        .auth-btn-view { background:#f1f5f9;color:#64748b;margin-top:10px; }
-        .auth-btn-view:hover { background:#e2e8f0; }
-        .auth-error { color:#ef4444;font-size:13px;font-weight:600;margin-top:8px;min-height:20px; }
-        .auth-badge { display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;margin-bottom:16px; }
-        .badge-admin { background:#fef3c7;color:#d97706; }
-        .badge-editor { background:#ede9fe;color:#7c3aed; }
-        .badge-student { background:#dcfce7;color:#16a34a; }
-        .badge-viewer { background:#f1f5f9;color:#64748b; }
-        #role-indicator { position:fixed;top:0;left:0;right:0;z-index:999998;display:flex;align-items:center;justify-between;padding:4px 16px;font-size:12px;font-weight:700;gap:8px; }
-        #role-indicator.role-admin { background:#fef3c7;color:#92400e;border-bottom:2px solid #fcd34d; }
-        #role-indicator.role-editor { background:#ede9fe;color:#5b21b6;border-bottom:2px solid #a78bfa; }
-        #role-indicator.role-student { background:#dcfce7;color:#166534;border-bottom:2px solid #86efac; }
-        #role-indicator.role-viewer { background:#f1f5f9;color:#475569;border-bottom:2px solid #cbd5e1; }
-        .ri-left { display:flex;align-items:center;gap:8px; }
-        .ri-logout { padding:2px 10px;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;background:rgba(0,0,0,0.1);color:inherit;margin-left:auto; }
-        .ri-logout:hover { background:rgba(0,0,0,0.2); }
-    </style>
 </head>
 <body>
-
-    <!-- 權限登入介面 -->
-    <div id="auth-overlay">
-      <div class="auth-card">
-        <div style="font-size:36px;margin-bottom:8px;">⭐</div>
-        <div class="auth-title">學生打卡＆數位聯絡簿</div>
-        <div class="auth-subtitle">請選擇身份並登入</div>
-        <div class="auth-tabs">
-          <button class="auth-tab active" onclick="switchTab('admin')" id="tab-admin">👑 管理者</button>
-          <button class="auth-tab" onclick="switchTab('editor')" id="tab-editor">✏️ 編輯者</button>
-          <button class="auth-tab" onclick="switchTab('student')" id="tab-student">🎒 學生打卡</button>
-        </div>
-        <div id="form-admin">
-          <input class="auth-input" type="text" id="admin-user" placeholder="帳號" autocomplete="username"/>
-          <input class="auth-input" type="password" id="admin-pass" placeholder="密碼" autocomplete="current-password"/>
-          <button class="auth-btn auth-btn-primary" onclick="loginAdmin()">登入管理者</button>
-        </div>
-        <div id="form-editor" style="display:none">
-          <input class="auth-input" type="text" id="editor-user" placeholder="帳號 (editor01 ~ editor10)" autocomplete="username"/>
-          <input class="auth-input" type="password" id="editor-pass" placeholder="密碼" autocomplete="current-password"/>
-          <button class="auth-btn auth-btn-primary" onclick="loginEditor()">登入編輯者</button>
-        </div>
-        <div id="form-student" style="display:none">
-          <input class="auth-input" type="number" id="student-id" placeholder="座號 (如：5)" min="1" max="100"/>
-          <input class="auth-input" type="password" id="student-pass" placeholder="密碼" autocomplete="current-password"/>
-          <button class="auth-btn auth-btn-primary" onclick="loginStudent()">打卡登入</button>
-        </div>
-        <div class="auth-error" id="auth-error"></div>
-        <button class="auth-btn auth-btn-view" onclick="enterViewer()">👁 僅觀看（不登入）</button>
-      </div>
-    </div>
-
-    <!-- 角色提示列 -->
-    <div id="role-indicator" style="display:none">
-      <div class="ri-left">
-        <span id="ri-icon"></span>
-        <span id="ri-text"></span>
-      </div>
-      <button class="ri-logout" onclick="logout()">登出</button>
-    </div>
-
     <div id="root"></div>
-
-
-    <script>
-    // ========== 權限系統核心 ==========
-    window._authCredentials = null; // 從 cord.txt 載入
-    window._currentRole = 'none';   // none | viewer | student | editor | admin
-    window._currentStudentId = null;
-
-    // 讀取 cord.txt 並解析密碼
-    async function loadCredentials() {
-      try {
-        const r = await fetch('cord.txt?nocache=' + Date.now());
-        if (!r.ok) throw new Error('無法讀取 cord.txt');
-        const txt = await r.text();
-        const creds = { admin: {}, editors: {}, students: {} };
-        const lines = txt.split('\n').map(l => l.trim()).filter(Boolean);
-        let section = '';
-        for (const line of lines) {
-          if (line.includes('第一層')) { section = 'admin'; continue; }
-          if (line.includes('第二層')) { section = 'editor'; continue; }
-          if (line.includes('第三層')) { section = 'student'; continue; }
-          if (section === 'admin' && line.startsWith('帳號：')) {
-            const user = line.match(/帳號：(\S+)/)?.[1];
-            const pass = line.match(/密碼：(\S+)/)?.[1];
-            if (user && pass) creds.admin = { user, pass };
-          }
-          if (section === 'editor' && line.startsWith('帳號：')) {
-            const user = line.match(/帳號：(\S+)/)?.[1];
-            const pass = line.match(/密碼：(\S+)/)?.[1];
-            if (user && pass) creds.editors[user] = pass;
-          }
-          if (section === 'student' && /^\d+\s*→/.test(line)) {
-            const [idPart, passPart] = line.split('→');
-            const id = parseInt(idPart.trim());
-            const pass = passPart?.trim();
-            if (id && pass) creds.students[id] = pass;
-          }
-        }
-        window._authCredentials = creds;
-      } catch(e) {
-        console.warn('cord.txt 讀取失敗，使用預設空密碼。', e);
-        window._authCredentials = { admin: {}, editors: {}, students: {} };
-      }
-    }
-
-    function switchTab(tab) {
-      ['admin','editor','student'].forEach(t => {
-        document.getElementById('form-' + t).style.display = t === tab ? '' : 'none';
-        document.getElementById('tab-' + t).classList.toggle('active', t === tab);
-      });
-      document.getElementById('auth-error').textContent = '';
-    }
-
-    function showError(msg) { document.getElementById('auth-error').textContent = msg; }
-
-    function activateRole(role, label, icon, studentId) {
-      window._currentRole = role;
-      window._currentStudentId = studentId || null;
-      document.getElementById('auth-overlay').classList.add('hidden');
-      const ri = document.getElementById('role-indicator');
-      ri.style.display = 'flex';
-      ri.className = 'role-' + role;
-      document.getElementById('ri-icon').textContent = icon;
-      document.getElementById('ri-text').textContent = label;
-      // 通知 React app 權限已設定
-      window.dispatchEvent(new CustomEvent('auth-ready', { detail: { role, studentId } }));
-    }
-
-    function loginAdmin() {
-      const u = document.getElementById('admin-user').value.trim();
-      const p = document.getElementById('admin-pass').value;
-      const c = window._authCredentials?.admin;
-      if (c && u === c.user && p === c.pass) {
-        activateRole('admin', '管理者 — 最高權限', '👑');
-      } else { showError('❌ 帳號或密碼錯誤'); }
-    }
-
-    function loginEditor() {
-      const u = document.getElementById('editor-user').value.trim();
-      const p = document.getElementById('editor-pass').value;
-      const editors = window._authCredentials?.editors || {};
-      if (editors[u] && editors[u] === p) {
-        activateRole('editor', '聯絡簿編輯者 (' + u + ')', '✏️');
-      } else { showError('❌ 帳號或密碼錯誤'); }
-    }
-
-    function loginStudent() {
-      const id = parseInt(document.getElementById('student-id').value);
-      const p = document.getElementById('student-pass').value;
-      const students = window._authCredentials?.students || {};
-      if (id && students[id] && students[id] === p) {
-        activateRole('student', '學生打卡 — 座號 ' + id, '🎒', id);
-      } else { showError('❌ 座號或密碼錯誤'); }
-    }
-
-    function enterViewer() {
-      activateRole('viewer', '觀看模式（唯讀）', '👁');
-    }
-
-    function logout() {
-      window._currentRole = 'none';
-      window._currentStudentId = null;
-      document.getElementById('auth-overlay').classList.remove('hidden');
-      document.getElementById('role-indicator').style.display = 'none';
-      window.dispatchEvent(new CustomEvent('auth-logout'));
-    }
-
-    // 支援 Enter 鍵送出
-    document.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter') return;
-      const overlay = document.getElementById('auth-overlay');
-      if (overlay && !overlay.classList.contains('hidden')) {
-        const active = document.querySelector('.auth-tab.active');
-        if (active?.id === 'tab-admin') loginAdmin();
-        else if (active?.id === 'tab-editor') loginEditor();
-        else if (active?.id === 'tab-student') loginStudent();
-      }
-    });
-
-    // 啟動：載入密碼後顯示登入介面
-    loadCredentials();
-    </script>
 
     <!-- 💡 使用自訂的 react-classic preset -->
     <script type="text/babel" data-presets="react-classic">
-
         const { useState, useEffect, useCallback } = React;
 
-        // ===== 權限系統整合 =====
-        function useAuthRole() {
-          const [role, setRole] = React.useState(window._currentRole || 'none');
-          const [studentId, setStudentId] = React.useState(window._currentStudentId || null);
-          React.useEffect(() => {
-            const onReady = (e) => { setRole(e.detail.role); setStudentId(e.detail.studentId || null); };
-            const onLogout = () => { setRole('none'); setStudentId(null); };
-            window.addEventListener('auth-ready', onReady);
-            window.addEventListener('auth-logout', onLogout);
-            return () => { window.removeEventListener('auth-ready', onReady); window.removeEventListener('auth-logout', onLogout); };
-          }, []);
-          return { role, studentId };
+        // =============================================
+        // 三層權限系統 (帳密以SHA-256雜湊儲存，明文帳密請見 code.csv)
+        // 角色: admin(管理者) | teacher(教師) | student:N(學生)
+        // =============================================
+        const AUTH_DB = {
+  "admin": { hash: "f0ce0e86206541c60bc47be815f83eba98004f63c883e6d71ff5cc929cb5f9ca", role: "admin" },
+  "teacher01": { hash: "ae70cd7134a079fb3816a524ee25a51284d0b137f1cbd77b9182dd7a89a0ac53", role: "teacher" },
+  "teacher02": { hash: "17851acca8ce336d42ab355d6bf3273dcf8bd057ef7ab37e9279ad5ae970678d", role: "teacher" },
+  "teacher03": { hash: "62fce12b572622a0607efcb07093d938f455a41bdcd43c82af30699d48aa48de", role: "teacher" },
+  "teacher04": { hash: "87d8ee29943b52ec2d48633bbaa7311984d3a6d5b046a4a87b4ee9bfd625a56b", role: "teacher" },
+  "teacher05": { hash: "89867ebb7ad3134bc525421e22a4702bed2927326a39f1c6a81c53cf8391e833", role: "teacher" },
+  "teacher06": { hash: "b72bcec76d0486a92640418344b9f66f99a931302992cc5c4c266cdf04390442", role: "teacher" },
+  "teacher07": { hash: "369d3080438aa463dfa3ce588139fc74c5d97384b1cda072573412c663b72469", role: "teacher" },
+  "teacher08": { hash: "23fbed1844fb7d41ba8e40e8029dfb1082ed197792249f7a1e3fb5498aa18c74", role: "teacher" },
+  "teacher09": { hash: "8f0927de1543c843f97cfdeb401b0eea9d2db75b0d3252004a626c5b9a136fb7", role: "teacher" },
+  "teacher10": { hash: "319ff17d7d63282aae1406a57558ddd4d9b0c2edc26d7af5310bee80a86720fb", role: "teacher" },
+  "student01": { hash: "91d3043f416b369909f5d8665163f157da48ad7917f0932aa3fb2d06e4f37e0b", role: "student:1" },
+  "student02": { hash: "bb5ff0a28f355777a138248b5e91f3ca3bb1dc3c00b47b41a2cea14242e9ab29", role: "student:2" },
+  "student03": { hash: "ad51af9c4ebf08d02c3ea38be54d26142376be1e4e69df29208b882831f3b36a", role: "student:3" },
+  "student04": { hash: "0683f1aff91d621861eeaa065fbe082667d6fcd9d7722d4d0faf93dbed593078", role: "student:4" },
+  "student05": { hash: "a42ebae833e4181483db585640c0077332af505b12d137308a0f6627a5483646", role: "student:5" },
+  "student06": { hash: "bb0d9e26b010d48adbf58d640036eaed60dfe0d4936e3428af5e9163342d5ec2", role: "student:6" },
+  "student07": { hash: "74b4ac62e77ba34d5f6afb9c0bf8cc5cb147f5443363ef503e90049e22608bfa", role: "student:7" },
+  "student08": { hash: "b11257ac62787a21d68783e354727b620f483ea539fc83bbacf4172bd198a2fe", role: "student:8" },
+  "student09": { hash: "95988a929244bf3b58b335a2ac1116d6c7a8bac565f45d8bb8d87ce75d13f1b9", role: "student:9" },
+  "student10": { hash: "33d2e8315c997158eaae1f68cef6beb58a0045eaa1bfb621c572b13f4ba6b305", role: "student:10" },
+  "student11": { hash: "43822e89b7a10937ebbb8ff8e9612201b4bfcd6026c6558366c7e2b74ad0e53e", role: "student:11" },
+  "student12": { hash: "8eafe135c3517fa88e3cc607fe1fbbcd922e3bca1c17d5653698e8587205a61a", role: "student:12" },
+  "student13": { hash: "92af51165d391c2bb12da81c71ed1aa924fc5e7f3c4f8d59e354e8c02498f08c", role: "student:13" },
+  "student14": { hash: "492c80c15a50a5d26d2aa288f63182785150799d717ed713525ccc046335a215", role: "student:14" },
+  "student15": { hash: "b498e9cc567e7dd80cb97e7df20d15bb6b7a7e24251bf6d6111c2cb50f854c31", role: "student:15" },
+  "student16": { hash: "d51b4deee46d26581d5ce77d567fe3163d8b58e21916c0e56bd6293f980d015f", role: "student:16" },
+  "student17": { hash: "32a3bf9ebf05555a1ab8c0819077dd6d5d51b18868b9f6961346fee870942c9b", role: "student:17" },
+  "student18": { hash: "1ac0096652773b73d9ae8c9d344c0e9488e75492d0f833bd31834b5f8a268bc0", role: "student:18" },
+  "student19": { hash: "addced5dc09ab63215f5a1a1e18837991fce227d7a82c3208740174f5c27de9c", role: "student:19" },
+  "student20": { hash: "90db4f49705f58aa9899121cc541c0ce7da8a32e92022da53ecfd9db4a9c1063", role: "student:20" },
+  "student21": { hash: "9c12d82cc5b3d67c83560d98c8c277c583b2cc32ea1cce17a7a502ef44dab29a", role: "student:21" },
+  "student22": { hash: "8f1a2766be7ae5876e31c36f7062aef9965baf258fb82afe8543ddd14f9b9dc5", role: "student:22" },
+  "student23": { hash: "f8c6074fa00108d3f8de7e4b26c112f46f1fa585b10d474347d22a13db17e050", role: "student:23" },
+  "student24": { hash: "e4af4644bc497099fc807b03539ca5745b5083939b20f9c9b0c47bb0edf98312", role: "student:24" },
+  "student25": { hash: "4e8dd93cfa08eba58962d37fc0b416b365e190e681bebdd5fb14cb230ff57d19", role: "student:25" },
+  "student26": { hash: "d1cae013bf868aea17b325608031ea2b32fe358d07c1714ea359708407ac6849", role: "student:26" },
+  "student27": { hash: "2e757362deb044fa88889abf1e38e0f0e14d7d45e9b5f24be6a0529a0577758d", role: "student:27" },
+  "student28": { hash: "20abc6bcf601136d803967c57c73ba19500736c6516e01f71fd807b2de10ab4a", role: "student:28" },
+  "student29": { hash: "3945a0523066577f4bdbfb3e0d13554956ce5d83b5e9ee5c39d4632b798641c0", role: "student:29" },
+  "student30": { hash: "327ca9117575f6088a515f184c35255beafb0ac4597aecbfa5dfc65f976c1650", role: "student:30" },
+  "student31": { hash: "fb6e89dc11b6c8e7cd9c093e3cc447849f63ba9ab5c76aad0978c3c95fbb889d", role: "student:31" },
+  "student32": { hash: "34d8f5391028ff24804d57791487721b2f516f653dd323ae8da4e51d5342020c", role: "student:32" },
+  "student33": { hash: "7a93a93b1a2e2b857ded02d70c785d5edd0e3a16cf50056f90586810b8d12dfb", role: "student:33" },
+  "student34": { hash: "3ba381e28354dd0b63418214b343fb13b3ec14da1ad626d716158c2a83d0866e", role: "student:34" },
+  "student35": { hash: "262975c68495edf9c981c77eb84058baebd6d24d665b93dffc60ecb5a8f7c081", role: "student:35" },
+  "student36": { hash: "f2eec4de72a51667a6a2c94d35be4093e1a62ea40de733d3dca53561de08b25a", role: "student:36" },
+  "student37": { hash: "d917692dbc9968bdbb6c8ab4a522afa8af2343d1412d4c04421772504404ad2d", role: "student:37" },
+  "student38": { hash: "c3a4b9dae02cadf356dc20f72d8d1c13c452235e6940e505edec005858943bc0", role: "student:38" },
+  "student39": { hash: "8313f3048b64fe5b4b0449d36f926d4a702fd2245a88f9cf1640af6a0c885df9", role: "student:39" },
+  "student40": { hash: "a33992cc34d5528ad0d01e909c21260b098004d58ee34b6912715974f25dc882", role: "student:40" },
+  "student41": { hash: "066fc3b547c9e80e3111b00a13169955ce411b9ad85efb6c190125488a8394c7", role: "student:41" },
+  "student42": { hash: "9f91298798ea5add33b418424f3b0ca6eb9a804add10e304bff2ea4e1587d99f", role: "student:42" },
+  "student43": { hash: "83046568066192d5a34e5e15e26a35deddf0ed383eac7cb721835fce2945009b", role: "student:43" },
+  "student44": { hash: "f7f926b803785289b6293dbe134d3c2e08be228eaa901cec9ce1881179e494d1", role: "student:44" },
+  "student45": { hash: "53acff83a00c76d40365f59d7cc2cad104a9dcb7b28e9a293eba374d8af68d0e", role: "student:45" },
+  "student46": { hash: "23cffbc371abb94e103b07fd836a32bb2d290b110fac6f422bc9cdfac8b18be0", role: "student:46" },
+  "student47": { hash: "982d44ad5268cb56f8cf5515723437c4bfaf3015f16dece9291abbf59fa1aa7b", role: "student:47" },
+  "student48": { hash: "5fdd8879f8522fbc064f81d82ff2db7363e35f6d29f905c58b79b47115c56a6f", role: "student:48" },
+  "student49": { hash: "108523d776e30825be2dd16860125729663542d84717f8221eb2b40e75025128", role: "student:49" },
+  "student50": { hash: "8d2ba048bc89f03657d99cca9449c04a13466d617a12bf083dd543b9043db57f", role: "student:50" }
+        };
+
+        async function sha256(message) {
+          const msgBuffer = new TextEncoder().encode(message);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function authLogin(username, password) {
+          const entry = AUTH_DB[username];
+          if (!entry) return null;
+          const h = await sha256(password);
+          if (h !== entry.hash) return null;
+          return { username, role: entry.role };
+        }
+
+        function getPermissions(role) {
+          if (!role) return { canEdit: false, canCheckIn: false, canAdmin: false, myStudentId: null };
+          if (role === 'admin') return { canEdit: true, canCheckIn: true, canAdmin: true, myStudentId: null };
+          if (role === 'teacher') return { canEdit: true, canCheckIn: false, canAdmin: false, myStudentId: null };
+          if (role.startsWith('student:')) {
+            const id = parseInt(role.split(':')[1]);
+            return { canEdit: false, canCheckIn: true, canAdmin: false, myStudentId: id };
+          }
+          return { canEdit: false, canCheckIn: false, canAdmin: false, myStudentId: null };
+        }
+
+        // 登入頁面元件
+        function LoginScreen({ onLogin }) {
+          const [username, setUsername] = React.useState('');
+          const [password, setPassword] = React.useState('');
+          const [error, setError] = React.useState('');
+          const [loading, setLoading] = React.useState(false);
+
+          const handleSubmit = async () => {
+            if (!username.trim() || !password.trim()) { setError('請輸入帳號和密碼'); return; }
+            setLoading(true);
+            setError('');
+            const user = await authLogin(username.trim(), password);
+            setLoading(false);
+            if (user) {
+              onLogin(user);
+            } else {
+              setError('帳號或密碼錯誤');
+            }
+          };
+
+          const handleGuest = () => onLogin({ username: 'guest', role: 'guest' });
+
+          return (
+            <div className="min-h-screen w-full bg-gradient-to-br from-pink-50 via-white to-yellow-50 flex flex-col items-center justify-center font-sans p-4">
+              <div className="w-full max-w-sm">
+                <div className="text-center mb-8">
+                  <div className="inline-flex bg-gradient-to-r from-yellow-400 to-pink-500 p-4 rounded-2xl shadow-lg mb-4 rotate-3">
+                    <Star className="text-white w-10 h-10 fill-current" />
+                  </div>
+                  <h1 className="text-2xl font-black text-slate-700">⭐學生打卡＆數位聯絡簿⭐</h1>
+                  <p className="text-slate-400 text-sm mt-1">請登入以使用完整功能</p>
+                </div>
+                <div className="bg-white rounded-3xl shadow-xl p-8 border border-pink-50">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-500 mb-1.5">帳號</label>
+                      <input type="text" value={username} onChange={e => setUsername(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                        placeholder="輸入帳號" autoComplete="username"
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl text-base focus:ring-2 focus:ring-pink-300 outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-500 mb-1.5">密碼</label>
+                      <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                        placeholder="輸入密碼" autoComplete="current-password"
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl text-base focus:ring-2 focus:ring-pink-300 outline-none transition-all" />
+                    </div>
+                    {error && <div className="text-red-500 text-sm font-bold text-center bg-red-50 py-2 rounded-lg">{error}</div>}
+                    <button type="button" onClick={handleSubmit} disabled={loading}
+                      className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-pink-600 text-white font-black rounded-xl shadow-md hover:shadow-lg transition-all text-base disabled:opacity-60">
+                      {loading ? '驗證中...' : '🔐 登入'}
+                    </button>
+                    <button type="button" onClick={handleGuest}
+                      className="w-full py-3 text-slate-400 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm border border-slate-100">
+                      👁️ 以訪客身分瀏覽（僅限閱讀）
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-6 text-center text-xs text-slate-300 space-y-1">
+                  <div>🔒 管理者：1名｜教師：10名｜學生：50名</div>
+                  <div>帳密資料請見 code.csv</div>
+                </div>
+              </div>
+            </div>
+          );
         }
 
 
@@ -326,11 +278,8 @@
           );
         };
 
-        function SchoolCheckInKing() {
-          const { role: currentRole, studentId: myStudentId } = useAuthRole();
-          const canAdmin = currentRole === 'admin';
-          const canEdit = currentRole === 'admin' || currentRole === 'editor';
-          const canCheckIn = currentRole === 'admin' || currentRole === 'student';
+        function SchoolCheckInKing({ currentUser, onLogout }) {
+          const perms = getPermissions(currentUser?.role);
           const [isMounted, setIsMounted] = useState(false);
           useEffect(() => {
             const timer = setTimeout(() => { setIsMounted(true); }, 200); 
@@ -358,6 +307,8 @@
           });
 
           const [isEditing, setIsEditing] = useState(false);
+          // 僅 admin/teacher 可進入編輯模式
+          const canActuallyEdit = perms.canEdit;
           const [students, setStudents] = useLocalStorage('king-v6-students', []);
           const [contactBookData, setContactBookData] = useLocalStorage('king-v6-cb-data', {});
           const [taskData, setTaskData] = useLocalStorage('king-v6-task-data', {});
@@ -480,8 +431,8 @@
           }, [isDraggingH, isDraggingV, isDraggingTaskW]);
 
           const handleCheckIn = useCallback((id) => {
-            if (!canCheckIn) return;
-            if (currentRole === 'student' && id !== myStudentId) return;
+            // 學生只能打自己的卡
+            if (perms.myStudentId !== null && perms.myStudentId !== id) return;
             setStudents(prev => prev.map(s => {
               if (s.id !== id || s.type !== 'normal' || s.status !== 'absent') return s;
               const now = new Date();
@@ -493,6 +444,7 @@
           }, [settings.idealTime, setStudents]);
 
           const handleUnlock = () => {
+            if (!perms.canAdmin) { showToast('⛔ 無此操作權限'); return; }
             const id = parseInt(unlockId);
             setStudents(prev => prev.map(s => s.id === id ? { ...s, arrivalTime: null, status: 'absent' } : s));
             setUnlockId('');
@@ -656,6 +608,11 @@
 
           return (
             <div className="min-h-[100dvh] w-full bg-[#f3f4f6] flex flex-col font-sans selection:bg-pink-200 overflow-hidden">
+              {(currentUser?.role === 'guest' || (currentUser?.role && currentUser.role.startsWith('student:'))) && (
+                <div style={{ pointerEvents: 'none' }} className="fixed top-0 left-0 right-0 z-[9999] text-center py-1 text-xs font-bold bg-amber-400 text-amber-900">
+                  {currentUser?.role === 'guest' ? '👁️ 訪客模式：僅供閱讀，所有操作均受限' : `🎒 學生模式：您只能操作自己（座號 ${String(perms.myStudentId).padStart(2,'0')} 號）的打卡`}
+                </div>
+              )}
               {toastMessage && (
                 <div style={{ pointerEvents: 'none' }} className="fixed top-1/4 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-[999999] animate-bounce font-bold text-sm text-center tracking-wide border-2 border-white/20">
                   {toastMessage}
@@ -669,7 +626,17 @@
                   </div>
                   <h1 className="text-xl md:text-2xl font-black text-slate-700 pointer-events-none">⭐學生打卡＆數位聯絡簿⭐</h1>
                 </div>
-
+                <div className="flex items-center gap-2 flex-wrap">
+                  {currentUser && (
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm">
+                      <span className="text-xs font-bold text-slate-400">
+                        {currentUser.role === 'admin' ? '👑 管理者' : currentUser.role === 'teacher' ? '👩‍🏫 教師' : currentUser.role === 'guest' ? '👁️ 訪客' : `🎒 學生${String(perms.myStudentId).padStart(2,'0')}`}
+                      </span>
+                      <span className="text-xs text-slate-300 hidden sm:inline">|</span>
+                      <span className="text-xs font-bold text-pink-500 hidden sm:inline">{currentUser.username}</span>
+                      <button type="button" onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500 font-bold transition-colors ml-1" title="登出">✕ 登出</button>
+                    </div>
+                  )}
                 <div className="flex items-center gap-2 md:gap-3 flex-wrap">
                   <div className="flex bg-pink-50/50 p-1.5 rounded-xl sm:mr-4 border border-pink-100 shadow-sm">
                     <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, viewMode:'both'}); }} className={`flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 rounded-lg text-sm font-black transition-all hover:bg-white/90 ${settings.viewMode==='both'?'bg-white shadow-md text-pink-600':'text-slate-500'}`}>
@@ -683,22 +650,23 @@
                     </button>
                   </div>
                   
-                  <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canAdmin){showToast("⛔ 僅管理者可重置打卡");return;} setIsResetConfirmOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-pink-500 rounded-xl text-sm font-bold transition-colors">
+                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsResetConfirmOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-pink-500 rounded-xl text-sm font-bold transition-colors">
                     <RotateCcw size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">重置</span>
-                  </button>
-                  <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canAdmin){showToast("⛔ 僅管理者可匯出報表");return;} exportCSV(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-green-600 rounded-xl text-sm font-bold transition-colors" title="匯出報表">
+                  </button>}
+                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); exportCSV(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-green-600 rounded-xl text-sm font-bold transition-colors" title="匯出報表">
                     <FileText size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">CSV報表</span>
-                  </button>
-                  <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canAdmin){showToast("⛔ 僅管理者可匯出備份");return;} exportData(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-blue-500 rounded-xl text-sm font-bold transition-colors" title="匯出完整備份">
+                  </button>}
+                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); exportData(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-blue-500 rounded-xl text-sm font-bold transition-colors" title="匯出完整備份">
                     <Download size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯出</span>
-                  </button>
-                  <label className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-emerald-500 rounded-xl text-sm font-bold transition-colors cursor-pointer m-0 relative overflow-hidden" title="還原備份">
+                  </button>}
+                  {perms.canAdmin && <label className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-emerald-500 rounded-xl text-sm font-bold transition-colors cursor-pointer m-0 relative overflow-hidden" title="還原備份">
                     <Upload size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯入</span>
-                    <input type="file" className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer" accept=".json" onChange={(e) => { e.stopPropagation(); if(!canAdmin){showToast("⛔ 僅管理者可匯入備份");return;} handleFileUpload(e); }}/>
-                  </label>
-                  <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canAdmin){showToast("⛔ 僅管理者可開啟設定");return;} setIsSettingsOpen(true); }} className="flex items-center gap-2 ml-1 px-5 py-2.5 md:px-6 md:py-3 bg-slate-100 text-slate-700 hover:bg-pink-100 hover:text-pink-600 rounded-xl text-sm font-black transition-colors border border-slate-200 shadow-sm">
+                    <input type="file" className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer" accept=".json" onChange={(e) => { e.stopPropagation(); handleFileUpload(e); }}/>
+                  </label>}
+                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsSettingsOpen(true); }} className="flex items-center gap-2 ml-1 px-5 py-2.5 md:px-6 md:py-3 bg-slate-100 text-slate-700 hover:bg-pink-100 hover:text-pink-600 rounded-xl text-sm font-black transition-colors border border-slate-200 shadow-sm">
                     <Settings size={20} className="pointer-events-none"/> <span className="pointer-events-none">設定</span>
-                  </button>
+                  </button>}
+                </div>
                 </div>
               </header>
 
@@ -726,7 +694,7 @@
                           if (s.type === 'empty') return <div key={s.id} className="flex items-center justify-center rounded-2xl bg-slate-50 text-slate-200 font-black text-xl border-2 border-dashed border-slate-100 w-full h-full pointer-events-none">{s.id}</div>;
                           const isNormal = s.type === 'normal'; const isLeave = s.type === 'leave'; const isClub = s.type === 'club'; const isAbsent = s.status === 'absent'; const isLate = s.status === 'late';
                           return (
-                            <button key={s.id} type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canCheckIn){showToast('⛔ 請先登入才能打卡');return;} if(currentRole==='student'&&s.id!==myStudentId){showToast('⛔ 只能為自己的座號打卡');return;} if (isNormal && isAbsent) handleCheckIn(s.id); }} className={`relative flex flex-col items-center justify-center rounded-2xl border-2 transition-all duration-300 shadow-sm group w-full h-full overflow-hidden ${isAbsent && isNormal ? 'bg-white border-slate-200 text-slate-600 hover:border-pink-300 hover:bg-pink-50 hover:-translate-y-0.5 cursor-pointer' : 'cursor-default'} ${s.status === 'on-time' ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : ''} ${isLate ? 'bg-red-50 border-red-300 text-red-700' : ''} ${isLeave ? 'bg-orange-50 border-orange-300 text-orange-700 opacity-90' : ''} ${isClub ? 'bg-purple-50 border-purple-300 text-purple-700 opacity-90' : ''}`}>
+                            <button key={s.id} type="button" onClickCapture={(e) => { e.stopPropagation(); if (isNormal && isAbsent && perms.canCheckIn && (perms.myStudentId === null || perms.myStudentId === s.id)) handleCheckIn(s.id); }} className={`relative flex flex-col items-center justify-center rounded-2xl border-2 transition-all duration-300 shadow-sm group w-full h-full overflow-hidden ${isAbsent && isNormal && perms.canCheckIn && (perms.myStudentId === null || perms.myStudentId === s.id) ? 'bg-white border-slate-200 text-slate-600 hover:border-pink-300 hover:bg-pink-50 hover:-translate-y-0.5 cursor-pointer' : 'cursor-default'} ${s.status === 'on-time' ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : ''} ${isLate ? 'bg-red-50 border-red-300 text-red-700' : ''} ${isLeave ? 'bg-orange-50 border-orange-300 text-orange-700 opacity-90' : ''} ${isClub ? 'bg-purple-50 border-purple-300 text-purple-700 opacity-90' : ''} ${perms.myStudentId === s.id ? 'ring-2 ring-pink-400 ring-offset-1' : ''}`}>
                               <span className="text-xl md:text-3xl font-black mb-0.5 opacity-100 pointer-events-none">{s.id}</span>
                               {s.name && <span className="text-[13px] md:text-[16px] font-black mb-0.5 truncate w-full px-1 leading-tight text-center tracking-wider pointer-events-none">{s.name}</span>}
                               <span className={`text-[9px] md:text-[11px] font-black px-1.5 md:px-2 py-0.5 rounded-full tracking-wide shrink-0 pointer-events-none ${isAbsent ? 'bg-slate-100 text-slate-400' : 'bg-white/80 shadow-sm'}`}>{isLeave ? '請假' : isClub ? '社團' : (s.arrivalTime || '未到')}</span>
@@ -769,7 +737,7 @@
                             <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showListNumber: !settings.showListNumber}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showListNumber ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>序號</button>
                             <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showTasks: !settings.showTasks}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showTasks ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>任務</button>
                             <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbDirection: settings.cbDirection==='horizontal'?'vertical':'horizontal'}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.cbDirection==='vertical' ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>{settings.cbDirection==='vertical' ? '直式' : '橫式'}</button>
-                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(!canEdit){showToast('⛔ 僅管理者或編輯者可編輯聯絡簿');return;} setIsEditing(!isEditing); }} className={`px-5 py-2 md:px-6 md:py-2.5 rounded-lg text-sm md:text-base font-black transition-all shadow-md ml-1 ${isEditing ? 'bg-[#ffd54f] text-[#6b4423]' : 'bg-[#ffd54f]/90 hover:bg-[#ffd54f] text-[#6b4423]'}`}>{isEditing ? '完成' : '編輯'}</button>
+                            {canActuallyEdit && <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(canActuallyEdit) setIsEditing(!isEditing); }} className={`px-5 py-2 md:px-6 md:py-2.5 rounded-lg text-sm md:text-base font-black transition-all shadow-md ml-1 ${isEditing ? 'bg-[#ffd54f] text-[#6b4423]' : 'bg-[#ffd54f]/90 hover:bg-[#ffd54f] text-[#6b4423]'}`}>{isEditing ? '完成' : '編輯'}</button>}
                           </div>
                         </div>
                       </div>
@@ -906,8 +874,18 @@
           );
         }
 
+        function App() {
+          const [currentUser, setCurrentUser] = React.useState(null);
+
+          const handleLogin = (user) => setCurrentUser(user);
+          const handleLogout = () => setCurrentUser(null);
+
+          if (!currentUser) return <LoginScreen onLogin={handleLogin} />;
+          return <SchoolCheckInKing currentUser={currentUser} onLogout={handleLogout} />;
+        }
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<SchoolCheckInKing />);
+        root.render(<App />);
     </script>
 </body>
 </html>
