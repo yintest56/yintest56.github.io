@@ -222,247 +222,82 @@
         const Star = (p) => <IconBase {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></IconBase>;
         const FileText = (p) => <IconBase {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></IconBase>;
 
-        // =============================================
-        // Google Sheets 整合層
-        // 使用 Apps Script Web App 作為後端中介（免 API Key、免 CORS）
-        // =============================================
+        // --- 核心組件與邏輯 ---
+        // 使用 window.storage (Artifact persistent storage) 跨機器儲存資料
+        function useCloudStorage(key, initialValue) {
+          const [storedValue, setStoredValue] = useState(initialValue);
+          const [isLoaded, setIsLoaded] = useState(false);
 
-        // --- localStorage hook（僅用於 settings 等本地偏好） ---
-        function useLocalStorage(key, initialValue) {
-          const [storedValue, setStoredValue] = useState(() => {
-            try {
-              if (typeof window === "undefined") return initialValue;
-              const item = window.localStorage.getItem(key);
-              if (!item) return initialValue;
-              const parsed = JSON.parse(item);
-              if (typeof initialValue === 'object' && parsed !== null && !Array.isArray(initialValue)) {
-                return { ...initialValue, ...parsed };
+          // 啟動時從雲端讀取最新資料
+          useEffect(() => {
+            let cancelled = false;
+            async function loadFromCloud() {
+              try {
+                if (window.storage) {
+                  const result = await window.storage.get(key, true); // shared=true 跨機器共享
+                  if (!cancelled) {
+                    if (result && result.value !== undefined) {
+                      const parsed = JSON.parse(result.value);
+                      if (typeof initialValue === 'object' && parsed !== null && !Array.isArray(initialValue)) {
+                        setStoredValue(prev => ({ ...initialValue, ...parsed }));
+                      } else {
+                        setStoredValue(parsed !== null ? parsed : initialValue);
+                      }
+                    }
+                    setIsLoaded(true);
+                  }
+                } else {
+                  // fallback: localStorage
+                  const item = window.localStorage.getItem(key);
+                  if (!cancelled) {
+                    if (item) {
+                      const parsed = JSON.parse(item);
+                      if (typeof initialValue === 'object' && parsed !== null && !Array.isArray(initialValue)) {
+                        setStoredValue(prev => ({ ...initialValue, ...parsed }));
+                      } else {
+                        setStoredValue(parsed !== null ? parsed : initialValue);
+                      }
+                    }
+                    setIsLoaded(true);
+                  }
+                }
+              } catch (error) {
+                console.warn("Cloud storage read error:", error);
+                if (!cancelled) setIsLoaded(true);
               }
-              return parsed !== null ? parsed : initialValue;
-            } catch (error) {
-              return initialValue;
             }
-          });
+            loadFromCloud();
+            return () => { cancelled = true; };
+          }, [key]);
 
           const setValue = useCallback((value) => {
             setStoredValue((prev) => {
               const valueToStore = value instanceof Function ? value(prev) : value;
-              try {
-                if (typeof window !== "undefined") {
-                  window.localStorage.setItem(key, JSON.stringify(valueToStore));
+              // 立即寫入雲端
+              async function saveToCloud() {
+                try {
+                  if (window.storage) {
+                    await window.storage.set(key, JSON.stringify(valueToStore), true); // shared=true
+                  } else {
+                    window.localStorage.setItem(key, JSON.stringify(valueToStore));
+                  }
+                } catch (error) {
+                  console.warn("Cloud storage write error:", error);
+                  try { window.localStorage.setItem(key, JSON.stringify(valueToStore)); } catch(e) {}
                 }
-              } catch (error) {
-                console.warn("Storage warning:", error);
               }
-              return valueToStore; 
+              saveToCloud();
+              return valueToStore;
             });
           }, [key]);
 
-          return [storedValue, setValue];
+          return [storedValue, setValue, isLoaded];
         }
 
-        // --- Google Sheets (Apps Script) 存取函式 ---
-        // scriptUrl: Apps Script Web App 部署 URL
-        async function gsRead(scriptUrl, action, params = {}) {
-          const url = new URL(scriptUrl);
-          url.searchParams.set('action', action);
-          Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-          const res = await fetch(url.toString(), { redirect: 'follow' });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const text = await res.text();
-          try { return JSON.parse(text); } catch { return text; }
-        }
-
-        async function gsWrite(scriptUrl, action, payload) {
-          const res = await fetch(scriptUrl, {
-            method: 'POST',
-            redirect: 'follow',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action, ...payload }),
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const text = await res.text();
-          try { return JSON.parse(text); } catch { return text; }
-        }
-
-        // --- 雲端資料 hook（students / contactBookData / taskData） ---
-        // key: 'students' | 'contactBookData' | 'taskData'
-        function useCloudData(scriptUrl, key, initialValue) {
-          const [data, setDataRaw] = useState(initialValue);
-          const [syncStatus, setSyncStatus] = useState('idle'); // idle | loading | saving | error | ok
-          const syncTimerRef = React.useRef(null);
-          const pendingRef = React.useRef(null);
-
-          // 初次載入
-          useEffect(() => {
-            if (!scriptUrl) return;
-            setSyncStatus('loading');
-            gsRead(scriptUrl, 'read', { key })
-              .then(result => {
-                if (result && result.value !== undefined) {
-                  try {
-                    const parsed = JSON.parse(result.value);
-                    if (typeof initialValue === 'object' && parsed !== null && !Array.isArray(initialValue) && !Array.isArray(parsed)) {
-                      setDataRaw(prev => ({ ...initialValue, ...parsed }));
-                    } else {
-                      setDataRaw(parsed !== null ? parsed : initialValue);
-                    }
-                  } catch {
-                    setDataRaw(initialValue);
-                  }
-                }
-                setSyncStatus('ok');
-              })
-              .catch(err => {
-                console.warn(`[GS] read ${key} failed:`, err);
-                setSyncStatus('error');
-              });
-          }, [scriptUrl, key]);
-
-          // 寫入（防抖 1.5 秒）
-          const setValue = useCallback((value) => {
-            setDataRaw((prev) => {
-              const valueToStore = value instanceof Function ? value(prev) : value;
-              pendingRef.current = valueToStore;
-              if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-              if (scriptUrl) {
-                setSyncStatus('saving');
-                syncTimerRef.current = setTimeout(() => {
-                  const toSave = pendingRef.current;
-                  gsWrite(scriptUrl, 'write', { key, value: JSON.stringify(toSave) })
-                    .then(() => setSyncStatus('ok'))
-                    .catch(err => { console.warn(`[GS] write ${key} failed:`, err); setSyncStatus('error'); });
-                }, 1500);
-              }
-              return valueToStore;
-            });
-          }, [scriptUrl, key]);
-
-          return [data, setValue, syncStatus];
-        }
-
-        // --- 同步指示器元件 ---
-        function SyncIndicator({ status }) {
-          const map = {
-            loading: { color: 'text-blue-400', icon: '⟳', label: '讀取中' },
-            saving:  { color: 'text-amber-400', icon: '↑', label: '儲存中' },
-            ok:      { color: 'text-emerald-400', icon: '✓', label: '已同步' },
-            error:   { color: 'text-red-400', icon: '✗', label: '同步失敗' },
-            idle:    { color: 'text-slate-300', icon: '○', label: '未連線' },
-          };
-          const s = map[status] || map.idle;
-          return (
-            <span className={`flex items-center gap-1 text-xs font-bold ${s.color} px-2 py-1 bg-slate-800/60 rounded-full border border-white/10`} title={`雲端狀態：${s.label}`}>
-              <span className={status === 'loading' || status === 'saving' ? 'animate-spin inline-block' : ''}>{s.icon}</span>
-              <span className="hidden sm:inline">{s.label}</span>
-            </span>
-          );
-        }
-
-        // --- Google Sheets 設定 Modal ---
-        function GSSetupModal({ gsConfig, onSave, onClose }) {
-          const [url, setUrl] = React.useState(gsConfig?.scriptUrl || '');
-          return (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[9999999] p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
-                <div className="p-5 border-b bg-gradient-to-r from-green-50 to-teal-50 flex items-center justify-between">
-                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">🔗 Google Sheets 雲端資料庫設定</h3>
-                  <button type="button" onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400">✕</button>
-                </div>
-                <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh] custom-scrollbar">
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 space-y-2">
-                    <div className="font-black text-blue-700 mb-1">📋 設定步驟（僅需一次）</div>
-                    <ol className="list-decimal ml-4 space-y-2 leading-relaxed">
-                      <li>開啟 <a href="https://sheets.new" target="_blank" className="underline font-bold">sheets.new</a> 建立新試算表，記住試算表 ID（網址中的長字串）。</li>
-                      <li>在試算表選單：<strong>擴充功能 → Apps Script</strong>，貼上下方程式碼後儲存。</li>
-                      <li>點「部署 → 新增部署」，類型選「網路應用程式」，存取權設為「<strong>任何人</strong>」，部署並複製 URL。</li>
-                      <li>將 URL 貼到下方輸入框，按「儲存並連線」即可。</li>
-                    </ol>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-black text-slate-600 mb-2">📜 Apps Script 程式碼（複製貼入）</label>
-                    <pre className="bg-slate-900 text-emerald-300 text-xs rounded-xl p-4 overflow-x-auto custom-scrollbar leading-relaxed select-all">{`const SHEET_NAME = 'AppData';
-
-function doGet(e) {
-  const lock = LockService.getScriptLock();
-  lock.tryLock(5000);
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(SHEET_NAME);
-    if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
-    const key = e.parameter.key;
-    const action = e.parameter.action;
-    if (action === 'read') {
-      const data = sheet.getDataRange().getValues();
-      for (const row of data) {
-        if (row[0] === key) {
-          return ContentService
-            .createTextOutput(JSON.stringify({ value: row[1] }))
-            .setMimeType(ContentService.MimeType.JSON);
-        }
-      }
-      return ContentService
-        .createTextOutput(JSON.stringify({ value: null }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-    return ContentService.createTextOutput('ok');
-  } finally { lock.releaseLock(); }
-}
-
-function doPost(e) {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    const body = JSON.parse(e.postData.contents);
-    const key = body.key;
-    const value = body.value;
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(SHEET_NAME);
-    if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
-    const data = sheet.getDataRange().getValues();
-    for (let i = 0; i < data.length; i++) {
-      if (data[i][0] === key) {
-        sheet.getRange(i + 1, 2).setValue(value);
-        return ContentService
-          .createTextOutput(JSON.stringify({ ok: true }))
-          .setMimeType(ContentService.MimeType.JSON);
-      }
-    }
-    sheet.appendRow([key, value]);
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: true }))
-      .setMimeType(ContentService.MimeType.JSON);
-  } finally { lock.releaseLock(); }
-}`}</pre>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-black text-slate-700 mb-2">🌐 Apps Script 部署 URL</label>
-                    <input
-                      type="url"
-                      value={url}
-                      onChange={e => setUrl(e.target.value)}
-                      placeholder="https://script.google.com/macros/s/…/exec"
-                      className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-300 outline-none font-mono"
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <button type="button" onClick={() => { onSave({ scriptUrl: url.trim() }); onClose(); }}
-                      disabled={!url.trim()}
-                      className="flex-1 py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-black rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-40">
-                      ✅ 儲存並連線
-                    </button>
-                    <button type="button" onClick={() => { onSave({ scriptUrl: '' }); onClose(); }}
-                      className="px-4 py-3 bg-slate-100 text-slate-500 font-bold rounded-xl hover:bg-slate-200 transition-all text-sm">
-                      清除（改回本機）
-                    </button>
-                  </div>
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 leading-relaxed">
-                    ⚠️ 資料存入 Google 試算表後，所有連上相同 URL 的裝置都能共用同一份資料（打卡紀錄、聯絡簿、任務）。設定（字型、字級等）仍存在各自裝置的瀏覽器。
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
+        // 為了相容舊版呼叫介面 (只回傳2個值)，用 useCloudStorage 包裝
+        function useLocalStorage(key, initialValue) {
+          const [value, setValue, isLoaded] = useCloudStorage(key, initialValue);
+          return [value, setValue, isLoaded];
         }
 
         const ClockDisplay = ({ clockStyleIndex, onClick }) => {
@@ -509,35 +344,19 @@ function doPost(e) {
             setTimeout(() => setToastMessage(''), 3500);
           }, []);
 
-          const [settings, setSettings] = useLocalStorage('king-v6-settings', {
+          const [settings, setSettings, settingsLoaded] = useLocalStorage('king-v6-settings', {
             totalStudents: 30, idealTime: '07:30', taskEndTime: '08:30', cbDirection: 'horizontal',
             cbFont: 'sans', cbFontSize: 32, clockStyle: 0, viewMode: 'both', showTasks: true,
             showListNumber: true, emptyIds: '', leaveIds: '', clubIds: '', bulkText: '', 
           });
 
-          // Google Sheets 設定（存本機，各台電腦各自設定一次即可）
-          const [gsConfig, setGsConfig] = useLocalStorage('king-v6-gs-config', { scriptUrl: '' });
-          const [isGSSetupOpen, setIsGSSetupOpen] = useState(false);
-          const scriptUrl = gsConfig?.scriptUrl || '';
-
           const [isEditing, setIsEditing] = useState(false);
           // 僅 admin/teacher 可進入編輯模式
           const canActuallyEdit = perms.canEdit;
-
-          // 雲端資料（透過 Google Sheets Apps Script）
-          const [students, setStudents, studentsSyncStatus] = useCloudData(scriptUrl, 'king-v6-students', []);
-          const [contactBookData, setContactBookData, cbSyncStatus] = useCloudData(scriptUrl, 'king-v6-cb-data', {});
-          const [taskData, setTaskData, taskSyncStatus] = useCloudData(scriptUrl, 'king-v6-task-data', {});
-
-          // 合併同步狀態顯示
-          const overallSyncStatus = React.useMemo(() => {
-            const statuses = [studentsSyncStatus, cbSyncStatus, taskSyncStatus];
-            if (statuses.includes('error')) return 'error';
-            if (statuses.includes('saving')) return 'saving';
-            if (statuses.includes('loading')) return 'loading';
-            if (statuses.every(s => s === 'ok')) return 'ok';
-            return 'idle';
-          }, [studentsSyncStatus, cbSyncStatus, taskSyncStatus]);
+          const [students, setStudents, studentsLoaded] = useLocalStorage('king-v6-students', []);
+          const [contactBookData, setContactBookData, cbLoaded] = useLocalStorage('king-v6-cb-data', {});
+          const [taskData, setTaskData, taskLoaded] = useLocalStorage('king-v6-task-data', {});
+          const cloudDataLoaded = settingsLoaded && studentsLoaded && cbLoaded && taskLoaded;
           const [viewDate, setViewDate] = useState(new Date());
           const [isSettingsOpen, setIsSettingsOpen] = useState(false);
           const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
@@ -765,12 +584,14 @@ function doPost(e) {
             e.target.value = '';
           };
 
-          if (!isMounted) {
+          if (!isMounted || !cloudDataLoaded) {
             return (
               <div className="min-h-screen w-full bg-[#f3f4f6] flex flex-col items-center justify-center font-sans">
                 <div className="w-12 h-12 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin mb-4"></div>
-                <h2 className="text-xl font-black text-slate-600 tracking-widest">系統準備中...</h2>
-                {scriptUrl && <p className="text-sm text-teal-500 font-bold mt-2">☁️ 正在連線 Google Sheets...</p>}
+                <h2 className="text-xl font-black text-slate-600 tracking-widest">
+                  {!cloudDataLoaded ? '☁️ 從雲端讀取最新資料...' : '系統準備中...'}
+                </h2>
+                {!cloudDataLoaded && <p className="text-sm text-slate-400 mt-2">請稍候，資料同步中</p>}
               </div>
             );
           }
@@ -852,6 +673,7 @@ function doPost(e) {
                     <Star className="text-white w-5 h-5 fill-current pointer-events-none" />
                   </div>
                   <h1 className="text-xl md:text-2xl font-black text-slate-700 pointer-events-none">⭐學生打卡＆數位聯絡簿⭐</h1>
+                  <span title="資料儲存於雲端，可跨機器使用" className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">☁️ 雲端同步</span>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {currentUser && (
@@ -864,7 +686,6 @@ function doPost(e) {
                       <button type="button" onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500 font-bold transition-colors ml-1" title="登出">✕ 登出</button>
                     </div>
                   )}
-                  {scriptUrl && !perms.canAdmin && <SyncIndicator status={overallSyncStatus} />}
                 <div className="flex items-center gap-2 md:gap-3 flex-wrap">
                   <div className="flex bg-pink-50/50 p-1.5 rounded-xl sm:mr-4 border border-pink-100 shadow-sm">
                     <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, viewMode:'both'}); }} className={`flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 rounded-lg text-sm font-black transition-all hover:bg-white/90 ${settings.viewMode==='both'?'bg-white shadow-md text-pink-600':'text-slate-500'}`}>
@@ -894,12 +715,6 @@ function doPost(e) {
                   {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsSettingsOpen(true); }} className="flex items-center gap-2 ml-1 px-5 py-2.5 md:px-6 md:py-3 bg-slate-100 text-slate-700 hover:bg-pink-100 hover:text-pink-600 rounded-xl text-sm font-black transition-colors border border-slate-200 shadow-sm">
                     <Settings size={20} className="pointer-events-none"/> <span className="pointer-events-none">設定</span>
                   </button>}
-                  {perms.canAdmin && (
-                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsGSSetupOpen(true); }} className="flex items-center gap-2 ml-1 px-4 py-2.5 md:px-5 md:py-3 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-xl text-sm font-black transition-colors border border-teal-200 shadow-sm" title="Google Sheets 雲端設定">
-                      🔗 <span className="hidden sm:inline">雲端</span>
-                    </button>
-                  )}
-                  {scriptUrl && <SyncIndicator status={overallSyncStatus} />}
                 </div>
                 </div>
               </header>
@@ -1089,14 +904,6 @@ function doPost(e) {
                     </div>
                   </div>
                 </div>
-              )}
-
-              {isGSSetupOpen && (
-                <GSSetupModal
-                  gsConfig={gsConfig}
-                  onSave={(newConfig) => { setGsConfig(prev => ({ ...prev, ...newConfig })); }}
-                  onClose={() => setIsGSSetupOpen(false)}
-                />
               )}
 
               {isResetConfirmOpen && (
