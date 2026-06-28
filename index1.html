@@ -1,0 +1,910 @@
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>⭐學生打卡＆數位聯絡簿⭐</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 React 與 ReactDOM (UMD 版本) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- 引入 Babel 用於在瀏覽器即時編譯 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+    <!-- 💡 核心修復：強制 Babel 使用 Classic Runtime，阻止其自動產生 import 語法導致瀏覽器報錯 -->
+    <script>
+        Babel.registerPreset('react-classic', {
+            presets: [
+                [Babel.availablePresets['react'], { runtime: 'classic' }]
+            ]
+        });
+    </script>
+
+    <!-- 網頁自訂樣式 -->
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f3f4f6; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        .tate-chu-yoko { text-combine-upright: all; -webkit-text-combine: horizontal; display: inline-block; }
+        .font-bopomofo { font-family: '王漢宗中楷體注音', '文鼎中楷注音', '全字庫注音體', 'BPMF', serif; }
+        .font-zhuyin-only { font-family: '文鼎注音寬字', 'BPMF', serif; }
+        .font-kai { font-family: '標楷體', 'DFKai-SB', 'BiauKai', 'Kaiti TC', serif; }
+        textarea { word-break: break-all; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- 💡 使用自訂的 react-classic preset -->
+    <script type="text/babel" data-presets="react-classic">
+        const { useState, useEffect, useCallback } = React;
+
+        // =============================================
+        // 三層權限系統 (帳密以SHA-256雜湊儲存，明文帳密請見 code.csv)
+        // 角色: admin(管理者) | teacher(教師) | student:N(學生)
+        // =============================================
+        const AUTH_DB = {
+  "admin": { hash: "f0ce0e86206541c60bc47be815f83eba98004f63c883e6d71ff5cc929cb5f9ca", role: "admin" },
+  "teacher01": { hash: "ae70cd7134a079fb3816a524ee25a51284d0b137f1cbd77b9182dd7a89a0ac53", role: "teacher" },
+  "teacher02": { hash: "17851acca8ce336d42ab355d6bf3273dcf8bd057ef7ab37e9279ad5ae970678d", role: "teacher" },
+  "teacher03": { hash: "62fce12b572622a0607efcb07093d938f455a41bdcd43c82af30699d48aa48de", role: "teacher" },
+  "teacher04": { hash: "87d8ee29943b52ec2d48633bbaa7311984d3a6d5b046a4a87b4ee9bfd625a56b", role: "teacher" },
+  "teacher05": { hash: "89867ebb7ad3134bc525421e22a4702bed2927326a39f1c6a81c53cf8391e833", role: "teacher" },
+  "teacher06": { hash: "b72bcec76d0486a92640418344b9f66f99a931302992cc5c4c266cdf04390442", role: "teacher" },
+  "teacher07": { hash: "369d3080438aa463dfa3ce588139fc74c5d97384b1cda072573412c663b72469", role: "teacher" },
+  "teacher08": { hash: "23fbed1844fb7d41ba8e40e8029dfb1082ed197792249f7a1e3fb5498aa18c74", role: "teacher" },
+  "teacher09": { hash: "8f0927de1543c843f97cfdeb401b0eea9d2db75b0d3252004a626c5b9a136fb7", role: "teacher" },
+  "teacher10": { hash: "319ff17d7d63282aae1406a57558ddd4d9b0c2edc26d7af5310bee80a86720fb", role: "teacher" },
+  "student01": { hash: "91d3043f416b369909f5d8665163f157da48ad7917f0932aa3fb2d06e4f37e0b", role: "student:1" },
+  "student02": { hash: "bb5ff0a28f355777a138248b5e91f3ca3bb1dc3c00b47b41a2cea14242e9ab29", role: "student:2" },
+  "student03": { hash: "ad51af9c4ebf08d02c3ea38be54d26142376be1e4e69df29208b882831f3b36a", role: "student:3" },
+  "student04": { hash: "0683f1aff91d621861eeaa065fbe082667d6fcd9d7722d4d0faf93dbed593078", role: "student:4" },
+  "student05": { hash: "a42ebae833e4181483db585640c0077332af505b12d137308a0f6627a5483646", role: "student:5" },
+  "student06": { hash: "bb0d9e26b010d48adbf58d640036eaed60dfe0d4936e3428af5e9163342d5ec2", role: "student:6" },
+  "student07": { hash: "74b4ac62e77ba34d5f6afb9c0bf8cc5cb147f5443363ef503e90049e22608bfa", role: "student:7" },
+  "student08": { hash: "b11257ac62787a21d68783e354727b620f483ea539fc83bbacf4172bd198a2fe", role: "student:8" },
+  "student09": { hash: "95988a929244bf3b58b335a2ac1116d6c7a8bac565f45d8bb8d87ce75d13f1b9", role: "student:9" },
+  "student10": { hash: "33d2e8315c997158eaae1f68cef6beb58a0045eaa1bfb621c572b13f4ba6b305", role: "student:10" },
+  "student11": { hash: "43822e89b7a10937ebbb8ff8e9612201b4bfcd6026c6558366c7e2b74ad0e53e", role: "student:11" },
+  "student12": { hash: "8eafe135c3517fa88e3cc607fe1fbbcd922e3bca1c17d5653698e8587205a61a", role: "student:12" },
+  "student13": { hash: "92af51165d391c2bb12da81c71ed1aa924fc5e7f3c4f8d59e354e8c02498f08c", role: "student:13" },
+  "student14": { hash: "492c80c15a50a5d26d2aa288f63182785150799d717ed713525ccc046335a215", role: "student:14" },
+  "student15": { hash: "b498e9cc567e7dd80cb97e7df20d15bb6b7a7e24251bf6d6111c2cb50f854c31", role: "student:15" },
+  "student16": { hash: "d51b4deee46d26581d5ce77d567fe3163d8b58e21916c0e56bd6293f980d015f", role: "student:16" },
+  "student17": { hash: "32a3bf9ebf05555a1ab8c0819077dd6d5d51b18868b9f6961346fee870942c9b", role: "student:17" },
+  "student18": { hash: "1ac0096652773b73d9ae8c9d344c0e9488e75492d0f833bd31834b5f8a268bc0", role: "student:18" },
+  "student19": { hash: "addced5dc09ab63215f5a1a1e18837991fce227d7a82c3208740174f5c27de9c", role: "student:19" },
+  "student20": { hash: "90db4f49705f58aa9899121cc541c0ce7da8a32e92022da53ecfd9db4a9c1063", role: "student:20" },
+  "student21": { hash: "9c12d82cc5b3d67c83560d98c8c277c583b2cc32ea1cce17a7a502ef44dab29a", role: "student:21" },
+  "student22": { hash: "8f1a2766be7ae5876e31c36f7062aef9965baf258fb82afe8543ddd14f9b9dc5", role: "student:22" },
+  "student23": { hash: "f8c6074fa00108d3f8de7e4b26c112f46f1fa585b10d474347d22a13db17e050", role: "student:23" },
+  "student24": { hash: "e4af4644bc497099fc807b03539ca5745b5083939b20f9c9b0c47bb0edf98312", role: "student:24" },
+  "student25": { hash: "4e8dd93cfa08eba58962d37fc0b416b365e190e681bebdd5fb14cb230ff57d19", role: "student:25" },
+  "student26": { hash: "d1cae013bf868aea17b325608031ea2b32fe358d07c1714ea359708407ac6849", role: "student:26" },
+  "student27": { hash: "2e757362deb044fa88889abf1e38e0f0e14d7d45e9b5f24be6a0529a0577758d", role: "student:27" },
+  "student28": { hash: "20abc6bcf601136d803967c57c73ba19500736c6516e01f71fd807b2de10ab4a", role: "student:28" },
+  "student29": { hash: "3945a0523066577f4bdbfb3e0d13554956ce5d83b5e9ee5c39d4632b798641c0", role: "student:29" },
+  "student30": { hash: "327ca9117575f6088a515f184c35255beafb0ac4597aecbfa5dfc65f976c1650", role: "student:30" },
+  "student31": { hash: "fb6e89dc11b6c8e7cd9c093e3cc447849f63ba9ab5c76aad0978c3c95fbb889d", role: "student:31" },
+  "student32": { hash: "34d8f5391028ff24804d57791487721b2f516f653dd323ae8da4e51d5342020c", role: "student:32" },
+  "student33": { hash: "7a93a93b1a2e2b857ded02d70c785d5edd0e3a16cf50056f90586810b8d12dfb", role: "student:33" },
+  "student34": { hash: "3ba381e28354dd0b63418214b343fb13b3ec14da1ad626d716158c2a83d0866e", role: "student:34" },
+  "student35": { hash: "262975c68495edf9c981c77eb84058baebd6d24d665b93dffc60ecb5a8f7c081", role: "student:35" },
+  "student36": { hash: "f2eec4de72a51667a6a2c94d35be4093e1a62ea40de733d3dca53561de08b25a", role: "student:36" },
+  "student37": { hash: "d917692dbc9968bdbb6c8ab4a522afa8af2343d1412d4c04421772504404ad2d", role: "student:37" },
+  "student38": { hash: "c3a4b9dae02cadf356dc20f72d8d1c13c452235e6940e505edec005858943bc0", role: "student:38" },
+  "student39": { hash: "8313f3048b64fe5b4b0449d36f926d4a702fd2245a88f9cf1640af6a0c885df9", role: "student:39" },
+  "student40": { hash: "a33992cc34d5528ad0d01e909c21260b098004d58ee34b6912715974f25dc882", role: "student:40" },
+  "student41": { hash: "066fc3b547c9e80e3111b00a13169955ce411b9ad85efb6c190125488a8394c7", role: "student:41" },
+  "student42": { hash: "9f91298798ea5add33b418424f3b0ca6eb9a804add10e304bff2ea4e1587d99f", role: "student:42" },
+  "student43": { hash: "83046568066192d5a34e5e15e26a35deddf0ed383eac7cb721835fce2945009b", role: "student:43" },
+  "student44": { hash: "f7f926b803785289b6293dbe134d3c2e08be228eaa901cec9ce1881179e494d1", role: "student:44" },
+  "student45": { hash: "53acff83a00c76d40365f59d7cc2cad104a9dcb7b28e9a293eba374d8af68d0e", role: "student:45" },
+  "student46": { hash: "23cffbc371abb94e103b07fd836a32bb2d290b110fac6f422bc9cdfac8b18be0", role: "student:46" },
+  "student47": { hash: "982d44ad5268cb56f8cf5515723437c4bfaf3015f16dece9291abbf59fa1aa7b", role: "student:47" },
+  "student48": { hash: "5fdd8879f8522fbc064f81d82ff2db7363e35f6d29f905c58b79b47115c56a6f", role: "student:48" },
+  "student49": { hash: "108523d776e30825be2dd16860125729663542d84717f8221eb2b40e75025128", role: "student:49" },
+  "student50": { hash: "8d2ba048bc89f03657d99cca9449c04a13466d617a12bf083dd543b9043db57f", role: "student:50" }
+        };
+
+        async function sha256(message) {
+          const msgBuffer = new TextEncoder().encode(message);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function authLogin(username, password) {
+          const entry = AUTH_DB[username];
+          if (!entry) return null;
+          const h = await sha256(password);
+          if (h !== entry.hash) return null;
+          return { username, role: entry.role };
+        }
+
+        function getPermissions(role) {
+          if (!role) return { canEdit: false, canCheckIn: false, canAdmin: false, myStudentId: null };
+          if (role === 'admin') return { canEdit: true, canCheckIn: true, canAdmin: true, myStudentId: null };
+          if (role === 'teacher') return { canEdit: true, canCheckIn: false, canAdmin: false, myStudentId: null };
+          if (role.startsWith('student:')) {
+            const id = parseInt(role.split(':')[1]);
+            return { canEdit: false, canCheckIn: true, canAdmin: false, myStudentId: id };
+          }
+          return { canEdit: false, canCheckIn: false, canAdmin: false, myStudentId: null };
+        }
+
+        // 登入頁面元件
+        function LoginScreen({ onLogin }) {
+          const [username, setUsername] = React.useState('');
+          const [password, setPassword] = React.useState('');
+          const [error, setError] = React.useState('');
+          const [loading, setLoading] = React.useState(false);
+
+          const handleSubmit = async () => {
+            if (!username.trim() || !password.trim()) { setError('請輸入帳號和密碼'); return; }
+            setLoading(true);
+            setError('');
+            const user = await authLogin(username.trim(), password);
+            setLoading(false);
+            if (user) {
+              onLogin(user);
+            } else {
+              setError('帳號或密碼錯誤');
+            }
+          };
+
+          const handleGuest = () => onLogin({ username: 'guest', role: 'guest' });
+
+          return (
+            <div className="min-h-screen w-full bg-gradient-to-br from-pink-50 via-white to-yellow-50 flex flex-col items-center justify-center font-sans p-4">
+              <div className="w-full max-w-sm">
+                <div className="text-center mb-8">
+                  <div className="inline-flex bg-gradient-to-r from-yellow-400 to-pink-500 p-4 rounded-2xl shadow-lg mb-4 rotate-3">
+                    <Star className="text-white w-10 h-10 fill-current" />
+                  </div>
+                  <h1 className="text-2xl font-black text-slate-700">⭐學生打卡＆數位聯絡簿⭐</h1>
+                  <p className="text-slate-400 text-sm mt-1">請登入以使用完整功能</p>
+                </div>
+                <div className="bg-white rounded-3xl shadow-xl p-8 border border-pink-50">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-500 mb-1.5">帳號</label>
+                      <input type="text" value={username} onChange={e => setUsername(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                        placeholder="輸入帳號" autoComplete="username"
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl text-base focus:ring-2 focus:ring-pink-300 outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-500 mb-1.5">密碼</label>
+                      <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                        placeholder="輸入密碼" autoComplete="current-password"
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl text-base focus:ring-2 focus:ring-pink-300 outline-none transition-all" />
+                    </div>
+                    {error && <div className="text-red-500 text-sm font-bold text-center bg-red-50 py-2 rounded-lg">{error}</div>}
+                    <button type="button" onClick={handleSubmit} disabled={loading}
+                      className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-pink-600 text-white font-black rounded-xl shadow-md hover:shadow-lg transition-all text-base disabled:opacity-60">
+                      {loading ? '驗證中...' : '🔐 登入'}
+                    </button>
+                    <button type="button" onClick={handleGuest}
+                      className="w-full py-3 text-slate-400 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm border border-slate-100">
+                      👁️ 以訪客身分瀏覽（僅限閱讀）
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-6 text-center text-xs text-slate-300 space-y-1">
+                  <div>🔒 管理者：1名｜教師：10名｜學生：50名</div>
+                  <div>帳密資料請見 code.csv</div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+
+        // --- 內建圖示庫 (確保單檔運行絕對穩定) ---
+        const IconBase = ({ size = 24, className = "", children }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+        const Settings = (p) => <IconBase {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></IconBase>;
+        const Download = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
+        const RotateCcw = (p) => <IconBase {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></IconBase>;
+        const X = (p) => <IconBase {...p}><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></IconBase>;
+        const Unlock = (p) => <IconBase {...p}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></IconBase>;
+        const Monitor = (p) => <IconBase {...p}><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></IconBase>;
+        const Layout = (p) => <IconBase {...p}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></IconBase>;
+        const Maximize2 = (p) => <IconBase {...p}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></IconBase>;
+        const Upload = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></IconBase>;
+        const Star = (p) => <IconBase {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></IconBase>;
+        const FileText = (p) => <IconBase {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></IconBase>;
+
+        // --- 核心組件與邏輯 ---
+        // 使用 window.storage 雲端持久化儲存（跨裝置、跨瀏覽器同步）
+        function useCloudStorage(key, initialValue) {
+          const [storedValue, setStoredValue] = useState(initialValue);
+          const [loaded, setLoaded] = useState(false);
+
+          // 初始載入：從雲端讀取資料
+          useEffect(() => {
+            async function loadFromCloud() {
+              try {
+                const result = await window.storage.get(key);
+                if (result && result.value !== undefined) {
+                  const parsed = JSON.parse(result.value);
+                  if (typeof initialValue === 'object' && parsed !== null && !Array.isArray(initialValue)) {
+                    setStoredValue(prev => ({ ...initialValue, ...parsed }));
+                  } else {
+                    setStoredValue(parsed !== null ? parsed : initialValue);
+                  }
+                }
+              } catch (error) {
+                // key 不存在或其他錯誤，使用預設值
+                console.log("Cloud storage: key not found, using default:", key);
+              } finally {
+                setLoaded(true);
+              }
+            }
+            loadFromCloud();
+          }, [key]);
+
+          const setValue = useCallback((value) => {
+            setStoredValue((prev) => {
+              const valueToStore = value instanceof Function ? value(prev) : value;
+              // 非同步寫入雲端
+              window.storage.set(key, JSON.stringify(valueToStore)).catch(err => {
+                console.warn("Cloud storage write warning:", err);
+              });
+              return valueToStore;
+            });
+          }, [key]);
+
+          return [storedValue, setValue, loaded];
+        }
+
+        // 相容性包裝：對外介面同原本的 useLocalStorage
+        function useLocalStorage(key, initialValue) {
+          const [value, setValue, loaded] = useCloudStorage(key, initialValue);
+          return [value, setValue, loaded];
+        }
+
+        const ClockDisplay = ({ clockStyleIndex, onClick }) => {
+          const [time, setTime] = useState(new Date());
+          useEffect(() => {
+            const timer = setInterval(() => setTime(new Date()), 1000);
+            return () => clearInterval(timer);
+          }, []);
+          const timeStr = time.toLocaleTimeString('zh-TW', { hour12: false });
+          const clockStyles = [
+            { name: "數位霓虹", class: "text-[#eaff00] font-mono drop-shadow-[0_0_8px_rgba(234,255,0,0.6)]", bg: "bg-slate-900 px-6 py-1 rounded-2xl" },
+            { name: "圓潤泡泡", class: "text-pink-500 font-black tracking-widest", bg: "bg-white px-8 py-2 rounded-full border-4 border-pink-100 shadow-inner" },
+            { name: "黑板手寫", class: "text-yellow-100 font-serif italic", bg: "bg-[#2a453b] px-6 py-1 rounded-lg border-2 border-white/20" },
+            { name: "簡約卡片", class: "text-slate-700 font-light", bg: "bg-white px-6 py-1 rounded-xl shadow-sm border border-slate-100" },
+            { name: "經典木質", class: "text-amber-900 font-serif font-bold", bg: "bg-amber-100 px-6 py-1 rounded-md border-b-4 border-amber-300 shadow-sm" }
+          ];
+          const currentStyle = clockStyles[clockStyleIndex || 0] || clockStyles[0];
+          return (
+            <div className={`cursor-pointer transition-all active:scale-95 ${currentStyle.bg}`} onClickCapture={(e) => { e.stopPropagation(); onClick(); }}>
+              <div className={`text-4xl md:text-5xl font-bold ${currentStyle.class}`}>{timeStr}</div>
+            </div>
+          );
+        };
+
+        function SchoolCheckInKing({ currentUser, onLogout }) {
+          const perms = getPermissions(currentUser?.role);
+          const [isMounted, setIsMounted] = useState(false);
+          useEffect(() => {
+            const timer = setTimeout(() => { setIsMounted(true); }, 200); 
+            return () => clearTimeout(timer);
+          }, []);
+
+          const [leftPaneWidth, setLeftPaneWidth] = useState(45);
+          const [taskHeight, setTaskHeight] = useState(30);
+          const [taskWidth, setTaskWidth] = useState(30);
+          
+          const [isDraggingH, setIsDraggingH] = useState(false);
+          const [isDraggingV, setIsDraggingV] = useState(false);
+          const [isDraggingTaskW, setIsDraggingTaskW] = useState(false); 
+
+          const [toastMessage, setToastMessage] = useState('');
+          const showToast = useCallback((msg) => {
+            setToastMessage(msg);
+            setTimeout(() => setToastMessage(''), 3500);
+          }, []);
+
+          const [settings, setSettings, settingsLoaded] = useLocalStorage('king-v6-settings', {
+            totalStudents: 30, idealTime: '07:30', taskEndTime: '08:30', cbDirection: 'horizontal',
+            cbFont: 'sans', cbFontSize: 32, clockStyle: 0, viewMode: 'both', showTasks: true,
+            showListNumber: true, emptyIds: '', leaveIds: '', clubIds: '', bulkText: '', 
+          });
+
+          const [isEditing, setIsEditing] = useState(false);
+          // 僅 admin/teacher 可進入編輯模式
+          const canActuallyEdit = perms.canEdit;
+          const [students, setStudents, studentsLoaded] = useLocalStorage('king-v6-students', []);
+          const [contactBookData, setContactBookData, cbLoaded] = useLocalStorage('king-v6-cb-data', {});
+          const [taskData, setTaskData, taskLoaded] = useLocalStorage('king-v6-task-data', {});
+          const cloudDataLoaded = studentsLoaded && cbLoaded && taskLoaded;
+          const [viewDate, setViewDate] = useState(new Date());
+          const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+          const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+          const [unlockId, setUnlockId] = useState('');
+
+          const formatDateKey = useCallback((date) => {
+            if (!date) return new Date().toISOString().split('T')[0];
+            const d = new Date(date);
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            return d.toISOString().split('T')[0];
+          }, []);
+
+          const currentViewDateKey = formatDateKey(viewDate);
+
+          useEffect(() => {
+            if (!isMounted) return;
+            const isWeekend = viewDate.getDay() === 0 || viewDate.getDay() === 6;
+            const isToday = currentViewDateKey === formatDateKey(new Date());
+            setContactBookData(prev => {
+              if (prev[currentViewDateKey] !== undefined) return prev;
+              return { ...prev, [currentViewDateKey]: (isToday && !isWeekend) ? "國習P.30-P.32\n國作L3\n數作Ch.3\n明帶水彩用具\n交午餐回條\n做家事" : "" };
+            });
+            setTaskData(prev => {
+              if (prev[currentViewDateKey] !== undefined) return prev;
+              return { ...prev, [currentViewDateKey]: (isToday && !isWeekend) ? "靜心晨讀10分鐘\n繳交今日作業\n抄寫聯絡簿" : "" };
+            });
+          }, [currentViewDateKey, viewDate, setContactBookData, setTaskData, isMounted, formatDateKey]);
+
+          useEffect(() => {
+            if (!isMounted) return;
+            setStudents(prev => {
+              let baseList = Array.from({ length: settings.totalStudents }, (_, i) => ({ id: i + 1, name: '', type: 'normal' }));
+              const safeEmptyIds = settings.emptyIds || '';
+              const safeImportText = settings.bulkText || '';
+              const emptyArr = safeEmptyIds.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+
+              if (safeImportText.trim() !== '') {
+                const lines = safeImportText.split('\n').filter(l => l.trim() !== '');
+                let autoId = 1;
+                lines.forEach((line) => {
+                  let name = line.trim();
+                  let id = null;
+                  const match = line.match(/^(\d+)[\s,\.\t]+(.+)$/);
+                  if (match) {
+                    id = parseInt(match[1], 10);
+                    name = match[2].trim();
+                    autoId = id + 1; 
+                  } else if (/^\d+$/.test(name)) {
+                     id = parseInt(name, 10);
+                     name = '';
+                     autoId = id + 1;
+                  } else {
+                     while (emptyArr.includes(autoId) && autoId <= settings.totalStudents) { autoId++; }
+                     id = autoId;
+                     autoId++; 
+                  }
+                  const student = baseList.find(s => s.id === id);
+                  if (student) {
+                    student.name = name;
+                    if (name === '空號') student.type = 'empty';
+                  }
+                });
+              }
+
+              const leaveArr = (settings.leaveIds || '').split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+              const clubArr = (settings.clubIds || '').split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+
+              return baseList.map(base => {
+                const existing = prev.find(s => s.id === base.id) || { arrivalTime: null, status: 'absent' };
+                let finalType = base.type;
+                if (emptyArr.includes(base.id)) finalType = 'empty';
+                else if (leaveArr.includes(base.id)) finalType = 'leave';
+                else if (clubArr.includes(base.id)) finalType = 'club';
+
+                return { ...base, type: finalType, arrivalTime: existing.arrivalTime, status: existing.status };
+              });
+            });
+          }, [settings.totalStudents, settings.emptyIds, settings.leaveIds, settings.clubIds, settings.bulkText, isMounted, setStudents]);
+
+          useEffect(() => {
+            const handleMouseMove = (e) => {
+              if (isDraggingH) {
+                const newWidth = (e.clientX / window.innerWidth) * 100;
+                if (newWidth > 20 && newWidth < 80) setLeftPaneWidth(newWidth);
+              }
+              if (isDraggingV) {
+                const container = document.getElementById('right-pane-container');
+                if (container) {
+                  const rect = container.getBoundingClientRect();
+                  const newHeight = ((rect.bottom - e.clientY) / rect.height) * 100;
+                  if (newHeight > 10 && newHeight < 60) setTaskHeight(newHeight);
+                }
+              }
+              if (isDraggingTaskW) {
+                const container = document.getElementById('content-area-container');
+                if (container) {
+                  const rect = container.getBoundingClientRect();
+                  const newWidth = ((e.clientX - rect.left) / rect.width) * 100;
+                  if (newWidth > 15 && newWidth < 50) setTaskWidth(newWidth);
+                }
+              }
+            };
+            const handleMouseUp = () => { setIsDraggingH(false); setIsDraggingV(false); setIsDraggingTaskW(false); };
+            
+            if (isDraggingH || isDraggingV || isDraggingTaskW) {
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
+              document.addEventListener('touchmove', (e) => handleMouseMove({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }), { passive: false });
+              document.addEventListener('touchend', handleMouseUp);
+            }
+            return () => {
+              document.removeEventListener('mousemove', handleMouseMove);
+              document.removeEventListener('mouseup', handleMouseUp);
+              document.removeEventListener('touchmove', handleMouseMove);
+              document.removeEventListener('touchend', handleMouseUp);
+            };
+          }, [isDraggingH, isDraggingV, isDraggingTaskW]);
+
+          const handleCheckIn = useCallback((id) => {
+            // 學生只能打自己的卡
+            if (perms.myStudentId !== null && perms.myStudentId !== id) return;
+            setStudents(prev => prev.map(s => {
+              if (s.id !== id || s.type !== 'normal' || s.status !== 'absent') return s;
+              const now = new Date();
+              const timeStr = now.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' });
+              const [h, m] = (settings.idealTime || '07:30').split(':').map(Number);
+              const ideal = new Date(); ideal.setHours(h, m, 0, 0);
+              return { ...s, arrivalTime: timeStr, status: now <= ideal ? 'on-time' : 'late' };
+            }));
+          }, [settings.idealTime, setStudents]);
+
+          const handleUnlock = () => {
+            if (!perms.canAdmin) { showToast('⛔ 無此操作權限'); return; }
+            const id = parseInt(unlockId);
+            setStudents(prev => prev.map(s => s.id === id ? { ...s, arrivalTime: null, status: 'absent' } : s));
+            setUnlockId('');
+          };
+
+          const triggerDownload = (content, fileName, mimeType) => {
+            try {
+              const blob = new Blob([content], { type: mimeType });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = fileName;
+              a.target = '_blank';
+              document.body.appendChild(a); 
+              a.click();
+              setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 150);
+              showToast('✅ 檔案已請求下載！');
+            } catch (err) {
+              console.error(err);
+              showToast('⚠️ 下載被預覽環境阻擋，請確認權限或在新分頁開啟。');
+            }
+          };
+
+          const exportCSV = () => {
+            const dateStr = formatDateKey(viewDate);
+            const cbText = (contactBookData[currentViewDateKey] || '').replace(/"/g, '""');
+            const taskText = (taskData[currentViewDateKey] || '').replace(/"/g, '""');
+            
+            const currentStats = {
+              total: students.filter(s => s.type !== 'empty').length,
+              present: students.filter(s => (s.status === 'on-time' || s.status === 'late')).length,
+              late: students.filter(s => s.status === 'late').length,
+              absent: students.filter(s => s.status === 'absent' && s.type === 'normal').length,
+              leave: students.filter(s => s.type === 'leave').length,
+              club: students.filter(s => s.type === 'club').length,
+            };
+
+            let csvContent = '\uFEFF'; 
+            csvContent += `報表日期,${dateStr}\n\n`;
+            csvContent += `【今日聯絡簿】\n"${cbText}"\n\n`;
+            csvContent += `【早自習任務】\n"${taskText}"\n\n`;
+            csvContent += `【出缺席統計】\n應到,已到,遲到,未到,請假,社團\n`;
+            csvContent += `${currentStats.total},${currentStats.present},${currentStats.late},${currentStats.absent},${currentStats.leave},${currentStats.club}\n\n`;
+            csvContent += `【學生打卡明細】\n座號,姓名,狀態,打卡時間\n`;
+            
+            students.forEach(s => {
+              if (s.type === 'empty') return;
+              let statusText = '未到';
+              if (s.status === 'on-time') statusText = '準時';
+              else if (s.status === 'late') statusText = '遲到';
+              else if (s.type === 'leave') statusText = '請假';
+              else if (s.type === 'club') statusText = '社團';
+              
+              const name = (s.name || '').replace(/"/g, '""');
+              const time = s.arrivalTime || '';
+              csvContent += `${s.id},"${name}",${statusText},${time}\n`;
+            });
+            triggerDownload(csvContent, `⭐學生打卡報表_${dateStr}.csv`, 'text/csv;charset=utf-8;');
+          };
+
+          const exportData = () => {
+            const data = { settings, students, contactBookData, taskData };
+            triggerDownload(JSON.stringify(data), `⭐學生打卡＆數位聯絡簿⭐_備份_${formatDateKey(new Date())}.json`, 'application/json');
+          };
+
+          const handleFileUpload = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              try {
+                const json = JSON.parse(event.target.result);
+                if (json.settings) {
+                  setSettings(prev => {
+                    const merged = { ...prev, ...json.settings };
+                    merged.emptyIds = merged.emptyIds || '';
+                    merged.leaveIds = merged.leaveIds || '';
+                    merged.clubIds = merged.clubIds || '';
+                    merged.bulkText = merged.bulkText || '';
+                    merged.cbDirection = merged.cbDirection || 'horizontal';
+                    merged.cbFont = merged.cbFont || 'sans';
+                    return merged;
+                  });
+                }
+                if (json.students) setStudents(json.students);
+                if (json.contactBookData) setContactBookData(prev => ({ ...prev, ...json.contactBookData }));
+                if (json.taskData) setTaskData(prev => ({ ...prev, ...json.taskData }));
+                showToast('✅ 匯入成功！');
+              } catch (err) { showToast('❌ 匯入失敗，檔案格式不正確。'); }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+          };
+
+          if (!isMounted || !cloudDataLoaded || !settingsLoaded) {
+            return (
+              <div className="min-h-screen w-full bg-[#f3f4f6] flex flex-col items-center justify-center font-sans">
+                <div className="w-12 h-12 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin mb-4"></div>
+                <h2 className="text-xl font-black text-slate-600 tracking-widest">
+                  {!cloudDataLoaded ? '從雲端載入資料中...' : '系統準備中...'}
+                </h2>
+                <p className="text-sm text-slate-400 mt-2">資料儲存於雲端，跨裝置同步</p>
+              </div>
+            );
+          }
+
+          const stats = {
+            total: students.filter(s => s.type !== 'empty').length,
+            present: students.filter(s => (s.status === 'on-time' || s.status === 'late')).length,
+            late: students.filter(s => s.status === 'late').length,
+            absent: students.filter(s => s.status === 'absent' && s.type === 'normal').length,
+            leave: students.filter(s => s.type === 'leave').length,
+            club: students.filter(s => s.type === 'club').length,
+          };
+
+          const parseListContent = (text) => text ? text.split('\n').map(line => line.trim()).filter(line => line.length > 0) : [];
+          const cbItems = parseListContent(contactBookData[currentViewDateKey]);
+          const taskItems = parseListContent(taskData[currentViewDateKey]);
+
+          const renderText = (text) => {
+            const isVertical = settings.cbDirection === 'vertical';
+            const isZhuyinOnly = settings.cbFont === 'zhuyinOnly';
+            const isBopomofo = settings.cbFont === 'bopomofo';
+
+            const regex = /([a-zA-Z]+[\.\-]?[0-9]+[\.\)]?|[a-zA-Z0-9]+[\.\)]?|[\-\/]|數|卷)/;
+            const testRegex = /^([a-zA-Z]+[\.\-]?[0-9]+[\.\)]?|[a-zA-Z0-9]+[\.\)]?|[\-\/])$/;
+            
+            const parts = text.split(regex);
+            return parts.map((part, i) => {
+              if (!part) return null;
+
+              if ((part === '數' || part === '卷') && (isZhuyinOnly || isBopomofo)) {
+                if (isZhuyinOnly) {
+                  return <span key={i} style={{ fontSize: '1.65em', lineHeight: '1', verticalAlign: 'middle', textAlign: 'center' }}>{part === '數' ? '述' : '眷'}</span>;
+                } else if (isBopomofo && isVertical) {
+                  return (
+                    <span key={i} style={{ display: 'inline-block', position: 'relative', width: '1em', height: '1em', verticalAlign: 'middle', fontFamily: '"標楷體", "DFKai-SB", "BiauKai", serif' }}>
+                      <span style={{ position: 'absolute', top: '50%', left: '28%', transform: 'translate(-50%, -50%)', fontSize: '0.95em', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '1', letterSpacing: 'normal' }}>{part}</span>
+                      <div style={{ position: 'absolute', top: '50%', left: '98%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: part === '數' ? '0.38em' : '0.28em', lineHeight: '1.1', fontFamily: 'sans-serif', writingMode: 'horizontal-tb', letterSpacing: 'normal' }}>
+                        {part === '數' ? <><span style={{ marginBottom: '0.05em' }}>ㄕ</span><span style={{ position: 'relative', display: 'inline-block' }}>ㄨ<span style={{ position: 'absolute', top: '-0.15em', left: '100%', marginLeft: '0.05em', fontSize: '0.9em', fontWeight: 'bold', lineHeight: '1' }}>ˋ</span></span></> : <><span style={{ marginBottom: '0.02em' }}>ㄐ</span><span style={{ marginBottom: '0.02em' }}>ㄩ</span><span style={{ position: 'relative', display: 'inline-block' }}>ㄢ<span style={{ position: 'absolute', top: '-0.15em', left: '100%', marginLeft: '0.05em', fontSize: '0.9em', fontWeight: 'bold', lineHeight: '1' }}>ˋ</span></span></>}
+                      </div>
+                    </span>
+                  );
+                } else if (isBopomofo) {
+                  return (
+                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', position: 'relative', verticalAlign: 'middle', fontFamily: '"標楷體", "DFKai-SB", "BiauKai", serif', marginRight: '0.1em' }}>
+                      <span className="leading-none" style={{ letterSpacing: 'normal' }}>{part}</span> 
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: part === '數' ? '0.45em' : '0.32em', lineHeight: '1.1', paddingLeft: '0.02em', fontFamily: 'sans-serif', writingMode: 'horizontal-tb', letterSpacing: 'normal' }}>
+                        {part === '數' ? <><span style={{ marginBottom: '0.05em' }}>ㄕ</span><span style={{ position: 'relative', display: 'inline-block' }}>ㄨ<span style={{ position: 'absolute', top: '-0.15em', left: '100%', marginLeft: '0.05em', fontSize: '0.9em', fontWeight: 'bold', lineHeight: '1' }}>ˋ</span></span></> : <><span style={{ marginBottom: '0.02em' }}>ㄐ</span><span style={{ marginBottom: '0.02em' }}>ㄩ</span><span style={{ position: 'relative', display: 'inline-block' }}>ㄢ<span style={{ position: 'absolute', top: '-0.15em', left: '100%', marginLeft: '0.05em', fontSize: '0.9em', fontWeight: 'bold', lineHeight: '1' }}>ˋ</span></span></>}
+                      </div>
+                    </span>
+                  );
+                }
+              } else if (testRegex.test(part) && part.length <= 6) {
+                const isDash = part === '-';
+                return <span key={i} className={`${isVertical ? 'tate-chu-yoko' : ''} inline-block font-sans`} style={{ margin: (isBopomofo && !isVertical) ? '0 0.1em 0 0.2em' : '0 0.1em', fontWeight: isZhuyinOnly ? '900' : 'normal', verticalAlign: 'middle', fontSize: isZhuyinOnly ? '1.4em' : '1em', letterSpacing: 'normal', transform: (isVertical && isDash) ? 'rotate(90deg)' : 'none', position: (isBopomofo && !isVertical) ? 'relative' : 'static', top: (isBopomofo && !isVertical) ? '-0.15em' : '0' }}>{part}</span>;
+              }
+              return <span key={i} style={isZhuyinOnly ? { fontSize: '1.65em', lineHeight: '1', verticalAlign: 'middle', textAlign: 'center' } : { verticalAlign: 'middle', lineHeight: '1.2', position: (isBopomofo && !isVertical) ? 'relative' : 'static', top: (isBopomofo && !isVertical) ? '-0.15em' : '0' }}>{part}</span>;
+            });
+          };
+
+          const getWeekdayString = (date) => ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
+          const getFontClass = () => settings.cbFont === 'bopomofo' ? "font-bopomofo" : settings.cbFont === 'zhuyinOnly' ? "font-zhuyin-only" : settings.cbFont === 'kai' ? "font-kai" : "font-sans";
+
+          return (
+            <div className="min-h-[100dvh] w-full bg-[#f3f4f6] flex flex-col font-sans selection:bg-pink-200 overflow-hidden">
+              {(currentUser?.role === 'guest' || (currentUser?.role && currentUser.role.startsWith('student:'))) && (
+                <div style={{ pointerEvents: 'none' }} className="fixed top-0 left-0 right-0 z-[9999] text-center py-1 text-xs font-bold bg-amber-400 text-amber-900">
+                  {currentUser?.role === 'guest' ? '👁️ 訪客模式：僅供閱讀，所有操作均受限' : `🎒 學生模式：您只能操作自己（座號 ${String(perms.myStudentId).padStart(2,'0')} 號）的打卡`}
+                </div>
+              )}
+              {toastMessage && (
+                <div style={{ pointerEvents: 'none' }} className="fixed top-1/4 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-[999999] animate-bounce font-bold text-sm text-center tracking-wide border-2 border-white/20">
+                  {toastMessage}
+                </div>
+              )}
+
+              <header className="flex-none pt-14 pb-4 bg-white px-4 md:px-6 flex flex-wrap items-center justify-between border-b-2 border-pink-50 shadow-sm relative z-[99999]">
+                <div className="flex items-center gap-2 mb-2 lg:mb-0">
+                  <div className="bg-gradient-to-r from-yellow-400 to-pink-500 p-2.5 rounded-xl shadow-sm rotate-3">
+                    <Star className="text-white w-5 h-5 fill-current pointer-events-none" />
+                  </div>
+                  <h1 className="text-xl md:text-2xl font-black text-slate-700 pointer-events-none">⭐學生打卡＆數位聯絡簿⭐</h1>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {currentUser && (
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm">
+                      <span className="text-xs font-bold text-slate-400">
+                        {currentUser.role === 'admin' ? '👑 管理者' : currentUser.role === 'teacher' ? '👩‍🏫 教師' : currentUser.role === 'guest' ? '👁️ 訪客' : `🎒 學生${String(perms.myStudentId).padStart(2,'0')}`}
+                      </span>
+                      <span className="text-xs text-slate-300 hidden sm:inline">|</span>
+                      <span className="text-xs font-bold text-pink-500 hidden sm:inline">{currentUser.username}</span>
+                      <button type="button" onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500 font-bold transition-colors ml-1" title="登出">✕ 登出</button>
+                    </div>
+                  )}
+                <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+                  <div className="flex bg-pink-50/50 p-1.5 rounded-xl sm:mr-4 border border-pink-100 shadow-sm">
+                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, viewMode:'both'}); }} className={`flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 rounded-lg text-sm font-black transition-all hover:bg-white/90 ${settings.viewMode==='both'?'bg-white shadow-md text-pink-600':'text-slate-500'}`}>
+                      <Layout size={20} className="pointer-events-none"/> <span className="hidden md:inline pointer-events-none">分屏顯示</span>
+                    </button>
+                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, viewMode:'checkin'}); }} className={`flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 rounded-lg text-sm font-black transition-all hover:bg-white/90 ${settings.viewMode==='checkin'?'bg-white shadow-md text-pink-600':'text-slate-500'}`}>
+                      <Monitor size={20} className="pointer-events-none"/> <span className="hidden md:inline pointer-events-none">打卡區</span>
+                    </button>
+                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, viewMode:'blackboard'}); }} className={`flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 rounded-lg text-sm font-black transition-all hover:bg-white/90 ${settings.viewMode==='blackboard'?'bg-white shadow-md text-pink-600':'text-slate-500'}`}>
+                      <Maximize2 size={20} className="pointer-events-none"/> <span className="hidden md:inline pointer-events-none">聯絡簿</span>
+                    </button>
+                  </div>
+                  
+                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsResetConfirmOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-pink-500 rounded-xl text-sm font-bold transition-colors">
+                    <RotateCcw size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">重置</span>
+                  </button>}
+                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); exportCSV(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-green-600 rounded-xl text-sm font-bold transition-colors" title="匯出報表">
+                    <FileText size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">CSV報表</span>
+                  </button>}
+                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); exportData(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-blue-500 rounded-xl text-sm font-bold transition-colors" title="匯出完整備份">
+                    <Download size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯出</span>
+                  </button>}
+                  {perms.canAdmin && <label className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-emerald-500 rounded-xl text-sm font-bold transition-colors cursor-pointer m-0 relative overflow-hidden" title="還原備份">
+                    <Upload size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯入</span>
+                    <input type="file" className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer" accept=".json" onChange={(e) => { e.stopPropagation(); handleFileUpload(e); }}/>
+                  </label>}
+                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsSettingsOpen(true); }} className="flex items-center gap-2 ml-1 px-5 py-2.5 md:px-6 md:py-3 bg-slate-100 text-slate-700 hover:bg-pink-100 hover:text-pink-600 rounded-xl text-sm font-black transition-colors border border-slate-200 shadow-sm">
+                    <Settings size={20} className="pointer-events-none"/> <span className="pointer-events-none">設定</span>
+                  </button>}
+                </div>
+                </div>
+              </header>
+
+              <main className="flex-1 flex overflow-hidden p-3 gap-2 relative bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-black/5 z-10">
+                {(settings.viewMode === 'both' || settings.viewMode === 'checkin') && (
+                  <section style={{ width: settings.viewMode === 'checkin' ? '100%' : `${leftPaneWidth}%` }} className="flex flex-col bg-white rounded-3xl shadow-md border-2 border-white overflow-hidden relative">
+                    <div className="absolute top-4 left-4 opacity-5 pointer-events-none rotate-12"><Star size={40} className="text-pink-400 fill-current"/></div>
+                    <div className="absolute bottom-4 right-4 opacity-5 pointer-events-none -rotate-12"><Star size={60} className="text-blue-400 fill-current"/></div>
+
+                    <div className="pt-4 pb-2 flex flex-col items-center shrink-0 z-10">
+                      <ClockDisplay clockStyleIndex={settings.clockStyle} onClick={() => setSettings({...settings, clockStyle: ((settings.clockStyle || 0) + 1) % 5})} />
+                      <div className="mt-4 flex flex-wrap justify-center gap-2 md:gap-3 px-2">
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-blue-200 bg-blue-50/80 text-blue-600 shadow-sm min-w-[100px] justify-center transition-all hover:bg-blue-100"><span className="text-xs font-bold opacity-80 pointer-events-none">應到:</span><span className="text-xl font-black pointer-events-none">{stats.total}</span></div>
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 text-emerald-600 shadow-sm min-w-[100px] justify-center transition-all hover:bg-emerald-100"><span className="text-xs font-bold opacity-80 pointer-events-none">已到:</span><span className="text-xl font-black pointer-events-none">{stats.present}</span></div>
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-red-200 bg-red-50/80 text-red-600 shadow-sm min-w-[100px] justify-center transition-all hover:bg-red-100"><span className="text-xs font-bold opacity-80 pointer-events-none">遲到:</span><span className="text-xl font-black pointer-events-none">{stats.late}</span></div>
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-amber-300 bg-amber-50/80 text-amber-700 shadow-sm min-w-[100px] justify-center transition-all hover:bg-amber-100"><span className="text-xs font-bold opacity-80 pointer-events-none">未到:</span><span className="text-xl font-black pointer-events-none">{stats.absent}</span></div>
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-purple-200 bg-purple-50/80 text-purple-600 shadow-sm min-w-[100px] justify-center transition-all hover:bg-purple-100"><span className="text-xs font-bold opacity-80 pointer-events-none">請假:</span><span className="text-xl font-black pointer-events-none">{stats.leave}</span></div>
+                        <div className="flex items-baseline gap-2 px-6 py-1.5 rounded-full border border-cyan-200 bg-cyan-50/80 text-cyan-600 shadow-sm min-w-[100px] justify-center transition-all hover:bg-cyan-100"><span className="text-xs font-bold opacity-80 pointer-events-none">社團:</span><span className="text-xl font-black pointer-events-none">{stats.club}</span></div>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 p-2 md:p-4 z-10 flex flex-col overflow-hidden">
+                      <div className="grid grid-cols-6 gap-1.5 md:gap-2.5 flex-1 w-full" style={{ gridTemplateRows: `repeat(${Math.ceil(students.length / 6)}, minmax(0, 1fr))` }}>
+                        {students.map(s => {
+                          if (s.type === 'empty') return <div key={s.id} className="flex items-center justify-center rounded-2xl bg-slate-50 text-slate-200 font-black text-xl border-2 border-dashed border-slate-100 w-full h-full pointer-events-none">{s.id}</div>;
+                          const isNormal = s.type === 'normal'; const isLeave = s.type === 'leave'; const isClub = s.type === 'club'; const isAbsent = s.status === 'absent'; const isLate = s.status === 'late';
+                          return (
+                            <button key={s.id} type="button" onClickCapture={(e) => { e.stopPropagation(); if (isNormal && isAbsent && perms.canCheckIn && (perms.myStudentId === null || perms.myStudentId === s.id)) handleCheckIn(s.id); }} className={`relative flex flex-col items-center justify-center rounded-2xl border-2 transition-all duration-300 shadow-sm group w-full h-full overflow-hidden ${isAbsent && isNormal && perms.canCheckIn && (perms.myStudentId === null || perms.myStudentId === s.id) ? 'bg-white border-slate-200 text-slate-600 hover:border-pink-300 hover:bg-pink-50 hover:-translate-y-0.5 cursor-pointer' : 'cursor-default'} ${s.status === 'on-time' ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : ''} ${isLate ? 'bg-red-50 border-red-300 text-red-700' : ''} ${isLeave ? 'bg-orange-50 border-orange-300 text-orange-700 opacity-90' : ''} ${isClub ? 'bg-purple-50 border-purple-300 text-purple-700 opacity-90' : ''} ${perms.myStudentId === s.id ? 'ring-2 ring-pink-400 ring-offset-1' : ''}`}>
+                              <span className="text-xl md:text-3xl font-black mb-0.5 opacity-100 pointer-events-none">{s.id}</span>
+                              {s.name && <span className="text-[13px] md:text-[16px] font-black mb-0.5 truncate w-full px-1 leading-tight text-center tracking-wider pointer-events-none">{s.name}</span>}
+                              <span className={`text-[9px] md:text-[11px] font-black px-1.5 md:px-2 py-0.5 rounded-full tracking-wide shrink-0 pointer-events-none ${isAbsent ? 'bg-slate-100 text-slate-400' : 'bg-white/80 shadow-sm'}`}>{isLeave ? '請假' : isClub ? '社團' : (s.arrivalTime || '未到')}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {settings.viewMode === 'both' && (
+                  <div className="w-4 flex items-center justify-center cursor-col-resize group z-20 touch-none" onMouseDown={() => setIsDraggingH(true)} onTouchStart={() => setIsDraggingH(true)}>
+                    <div className={`h-24 w-2 rounded-full transition-colors ${isDraggingH ? 'bg-pink-400' : 'bg-pink-200 group-hover:bg-pink-300 shadow-sm'}`} />
+                  </div>
+                )}
+
+                {(settings.viewMode === 'both' || settings.viewMode === 'blackboard') && (
+                  <section id="right-pane-container" style={{ width: settings.viewMode === 'blackboard' ? '100%' : `${100 - leftPaneWidth}%` }} className="flex flex-col relative">
+                    <div className="flex-1 bg-[#2b3a2f] rounded-3xl shadow-2xl border-[16px] border-[#7d5030] relative overflow-hidden flex flex-col box-border">
+                      <div className="absolute inset-0 opacity-20 pointer-events-none mix-blend-screen bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"></div>
+                      
+                      <div className="px-6 pt-5 pb-2 flex flex-col xl:flex-row xl:items-center justify-between gap-4 z-10 shrink-0">
+                        <div className="flex flex-wrap items-center gap-4">
+                          <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-2 drop-shadow-md tracking-wider"><Star className="text-[#ffd54f] fill-current w-7 h-7 md:w-8 md:h-8 pointer-events-none" /> 今日聯絡簿</h2>
+                          <div className="flex items-center bg-black/20 rounded-full p-1 border border-white/10 shadow-inner ml-2">
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getTime() - 86400000)); }} className="px-4 py-2 md:px-5 md:py-2.5 rounded-full hover:bg-white/20 text-white/90 text-sm md:text-base font-bold transition-colors">前一天</button>
+                            <div className="text-[#ffd54f] font-black text-lg md:text-xl px-2 drop-shadow-md tracking-wide pointer-events-none">{viewDate.getMonth() + 1}月{viewDate.getDate()}日 (星期{getWeekdayString(viewDate)})</div>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getTime() + 86400000)); }} className="px-4 py-2 md:px-5 md:py-2.5 rounded-full hover:bg-white/20 text-white/90 text-sm md:text-base font-bold transition-colors">後一天</button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                          <div className="flex items-center bg-white/10 rounded-lg border border-white/20 overflow-hidden shadow-sm">
+                             <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: Math.max(16, (settings.cbFontSize || 32) - 2)}); }} className="px-4 py-2 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A-</button>
+                             <span className="px-2 text-white/90 font-mono text-sm pointer-events-none">{settings.cbFontSize || 32}</span>
+                             <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: (settings.cbFontSize || 32) + 2}); }} className="px-4 py-2 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A+</button>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showListNumber: !settings.showListNumber}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showListNumber ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>序號</button>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showTasks: !settings.showTasks}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showTasks ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>任務</button>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbDirection: settings.cbDirection==='horizontal'?'vertical':'horizontal'}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.cbDirection==='vertical' ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>{settings.cbDirection==='vertical' ? '直式' : '橫式'}</button>
+                            {canActuallyEdit && <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(canActuallyEdit) setIsEditing(!isEditing); }} className={`px-5 py-2 md:px-6 md:py-2.5 rounded-lg text-sm md:text-base font-black transition-all shadow-md ml-1 ${isEditing ? 'bg-[#ffd54f] text-[#6b4423]' : 'bg-[#ffd54f]/90 hover:bg-[#ffd54f] text-[#6b4423]'}`}>{isEditing ? '完成' : '編輯'}</button>}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mx-8 border-b-2 border-solid rounded-full border-white/20 my-1 z-10 shrink-0 pointer-events-none"></div>
+
+                      <div id="content-area-container" className={`flex-1 flex overflow-hidden z-10 relative ${settings.cbDirection === 'vertical' ? 'flex-row-reverse' : 'flex-col'}`}>
+                        <div className={`flex-1 overflow-auto custom-scrollbar relative ${settings.cbDirection === 'vertical' ? 'px-8 py-4' : 'px-10 py-4'}`}>
+                          {isEditing ? (
+                            <textarea className={`w-full h-full bg-black/20 rounded-xl p-4 resize-none outline-none text-[#f8f9fa] placeholder-white/30 text-xl border border-white/10 ${settings.cbFont === 'zhuyinOnly' ? 'font-sans' : getFontClass()}`} style={{ writingMode: settings.cbDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb', letterSpacing: settings.cbFont === 'bopomofo' ? '0.1em' : '0.05em' }} value={contactBookData[currentViewDateKey] || ''} onChange={(e) => setContactBookData({...contactBookData, [currentViewDateKey]: e.target.value})} placeholder="請輸入聯絡簿內容，每行一項。&#10;儲存後會自動加上黃色圓圈序號喔！" spellCheck="false" />
+                          ) : (
+                            <div className={`text-[#f8f9fa] w-full h-full ${getFontClass()}`} style={{ fontSize: `${settings.cbFontSize || 32}px`, writingMode: settings.cbDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb', lineHeight: (settings.cbDirection === 'vertical' && settings.cbFont === 'bopomofo') ? 2.5 : 1.8, textShadow: '1px 1px 2px rgba(0,0,0,0.5)', ...(settings.cbDirection === 'horizontal' ? { display: 'grid', gridTemplateRows: 'repeat(4, auto)', gridAutoFlow: 'column', columnGap: '4rem', rowGap: '1.5rem', alignContent: 'start' } : {}) }}>
+                              {cbItems.map((item, index) => (
+                                <div key={index} className={`flex break-inside-avoid ${settings.cbDirection === 'vertical' ? 'items-center ml-10 mb-0' : 'items-center gap-3'}`}>
+                                  {settings.showListNumber && <div className="shrink-0 rounded-full bg-[#ffd54f] text-[#2b3a2f] flex items-center justify-center font-black shadow-sm font-sans pointer-events-none" style={{ width: `${(settings.cbFontSize || 32) * 1.2}px`, height: `${(settings.cbFontSize || 32) * 1.2}px`, fontSize: `${(settings.cbFontSize || 32) * 0.7}px`, marginTop: '0', marginBottom: settings.cbDirection === 'vertical' ? '0.5em' : '0', writingMode: 'horizontal-tb', letterSpacing: 'normal' }}>{index + 1}</div>}
+                                  <div className="leading-snug pointer-events-none" style={{ letterSpacing: settings.cbFont === 'bopomofo' ? '0.1em' : '0.05em' }}>{renderText(item)}</div>
+                                </div>
+                              ))}
+                              {cbItems.length === 0 && <div className="text-white/30 italic text-xl pointer-events-none">目前沒有聯絡簿內容...</div>}
+                            </div>
+                          )}
+                        </div>
+
+                        {settings.showTasks && (
+                          <div className={`${settings.cbDirection === 'vertical' ? 'w-6 h-full cursor-col-resize flex flex-col' : 'w-full h-6 cursor-row-resize flex flex-row'} justify-center items-center group z-30 shrink-0 touch-none ${settings.cbDirection === 'horizontal' ? 'mt-2' : ''}`} onMouseDown={(e) => { e.preventDefault(); if (settings.cbDirection === 'vertical') setIsDraggingTaskW(true); else setIsDraggingV(true); }} onTouchStart={(e) => { if (settings.cbDirection === 'vertical') setIsDraggingTaskW(true); else setIsDraggingV(true); }} title={settings.cbDirection === 'vertical' ? "按住拖曳調整任務區寬度" : "按住拖曳調整任務區高度"}>
+                            <div className={`${settings.cbDirection === 'vertical' ? 'border-l-[4px] h-1/2' : 'border-b-[4px] w-1/2'} border-solid rounded-full transition-colors ${ (settings.cbDirection === 'vertical' ? isDraggingTaskW : isDraggingV) ? 'border-[#ffd54f]' : 'border-white/20 group-hover:border-[#ffd54f]/60'}`}></div>
+                          </div>
+                        )}
+
+                        {settings.showTasks && (
+                          <div className={`flex flex-col relative shrink-0 transition-all duration-75 ${settings.cbDirection === 'vertical' ? 'pl-8 pr-2 pt-4 pb-10' : 'px-10 pb-10'}`} style={settings.cbDirection === 'vertical' ? { width: `${taskWidth}%`, height: '100%' } : { height: `${taskHeight}%` }}>
+                             <div className="inline-flex items-center bg-[#b89947] text-[#fff8e1] px-3 py-1 rounded-md text-sm font-bold mb-4 shadow-sm w-fit gap-1 border border-[#ffd54f]/30 shrink-0 font-sans whitespace-nowrap pointer-events-none"><Star size={14} className="fill-current text-[#ffd54f]"/> 早自習任務 <span className="opacity-80 ml-1">({settings.taskEndTime} 前)</span></div>
+                             {isEditing ? (
+                                <textarea className={`w-full h-full bg-black/20 rounded-xl p-3 resize-none outline-none text-[#f8f9fa] placeholder-white/30 border border-white/10 custom-scrollbar ${settings.cbFont === 'zhuyinOnly' ? 'font-sans' : getFontClass()}`} style={{ letterSpacing: settings.cbFont === 'bopomofo' ? '0.1em' : '0.05em', writingMode: settings.cbDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb', fontSize: `${settings.cbFontSize || 32}px` }} value={taskData[currentViewDateKey] || ''} onChange={(e) => setTaskData({...taskData, [currentViewDateKey]: e.target.value})} placeholder="請輸入任務，每行一項" spellCheck="false" />
+                             ) : (
+                                <div className={`text-white/90 w-full h-full overflow-auto custom-scrollbar ${getFontClass()}`} style={{ fontSize: `${settings.cbFontSize || 32}px`, textShadow: '1px 1px 2px rgba(0,0,0,0.5)', writingMode: settings.cbDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb', lineHeight: (settings.cbDirection === 'vertical' && settings.cbFont === 'bopomofo') ? 2.5 : 1.8, ...(settings.cbDirection === 'horizontal' ? { display: 'flex', flexWrap: 'wrap', columnGap: '2rem', rowGap: '1rem', alignContent: 'start' } : {}) }}>
+                                  {taskItems.map((item, index) => (
+                                     <div key={index} className={`flex break-inside-avoid ${settings.cbDirection === 'vertical' ? 'items-center ml-8 mb-0' : 'items-center gap-2'}`}>
+                                       <div className="w-5 h-5 border-[3px] border-[#ffd54f] rounded-sm shrink-0 pointer-events-none" style={{ marginTop: '0', marginBottom: settings.cbDirection === 'vertical' ? '0.5rem' : '0' }}></div>
+                                       <span className="leading-snug pointer-events-none" style={{ letterSpacing: settings.cbFont === 'bopomofo' ? '0.1em' : '0.05em' }}>{renderText(item)}</span>
+                                     </div>
+                                  ))}
+                                  {taskItems.length === 0 && <div className="text-white/30 italic text-sm font-sans pointer-events-none">目前沒有設定早自習任務...</div>}
+                                </div>
+                             )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 h-6 bg-[#4a3018] border-t-[3px] border-[#3a2010] flex items-end px-12 pb-1 gap-6 z-20 shadow-[inset_0_4px_6px_rgba(0,0,0,0.4)] pointer-events-none"><div className="w-12 h-2 bg-white rounded-full shadow-sm opacity-90 rotate-1"></div><div className="w-8 h-2 bg-pink-300 rounded-full shadow-sm opacity-90 -rotate-2"></div><div className="w-10 h-2 bg-sky-300 rounded-full shadow-sm opacity-90 rotate-1"></div></div>
+                    </div>
+                  </section>
+                )}
+              </main>
+
+              <footer className="relative z-10 shrink-0 text-center py-1.5 bg-[#f3f4f6] text-sm font-bold text-slate-400">
+                © 2026 鄭念慈 版權所有 ｜ ☁️ 資料儲存於雲端，跨裝置同步
+              </footer>
+
+              {isSettingsOpen && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[999999] p-4">
+                  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                    <div className="p-5 border-b flex items-center justify-between shrink-0 bg-slate-50">
+                      <h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><Settings className="text-pink-500 pointer-events-none"/> 設定中心</h3>
+                      <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsSettingsOpen(false); }} className="p-3 hover:bg-slate-200 rounded-full text-slate-400 transition-colors"><X size={24} className="pointer-events-none"/></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                      <section>
+                        <h4 className="text-sm md:text-base font-bold text-slate-400 mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">⏱️ 時間設定</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100"><label className="block text-sm font-bold text-slate-500 mb-1 flex items-center gap-1">⏰ 遲到時間</label><input type="time" value={settings.idealTime} onChange={(e) => setSettings({...settings, idealTime: e.target.value})} className="w-full p-2 border border-slate-200 rounded-lg text-base bg-white font-mono focus:ring-2 focus:ring-pink-300 outline-none transition-all" /></div>
+                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100"><label className="block text-sm font-bold text-slate-500 mb-1 flex items-center gap-1">⏳ 任務完成時間</label><input type="time" value={settings.taskEndTime} onChange={(e) => setSettings({...settings, taskEndTime: e.target.value})} className="w-full p-2 border border-slate-200 rounded-lg text-base bg-white font-mono focus:ring-2 focus:ring-pink-300 outline-none transition-all" /></div>
+                        </div>
+                      </section>
+                      <section>
+                        <h4 className="text-sm md:text-base font-bold text-slate-400 mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">👥 打卡學生名單設定</h4>
+                        <div className="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                          <div className="absolute top-0 left-0 w-1 h-full bg-pink-400"></div><h5 className="font-bold text-slate-700 text-sm md:text-base mb-3 flex items-center">方式 A：僅使用數字座號 <span className="text-[10px] md:text-xs text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full ml-2 font-black tracking-wide">優先使用</span></h5>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div><label className="block text-sm font-bold text-slate-500 mb-1">總人數:</label><input type="number" min="1" max="100" value={settings.totalStudents} onChange={(e) => setSettings({...settings, totalStudents: parseInt(e.target.value) || 30})} className="w-full p-2 md:p-3 border border-slate-200 rounded-lg text-base bg-white focus:ring-2 focus:ring-pink-300 outline-none" /></div>
+                            <div><label className="block text-sm font-bold text-slate-500 mb-1">空號 (逗號分隔):</label><input type="text" placeholder="例: 4,14" value={settings.emptyIds} onChange={(e) => setSettings({...settings, emptyIds: e.target.value})} className="w-full p-2 md:p-3 border border-slate-200 rounded-lg text-base bg-white focus:ring-2 focus:ring-pink-300 outline-none" /></div>
+                            <div><label className="block text-sm font-bold text-slate-500 mb-1">請假號碼:</label><input type="text" placeholder="例: 7" value={settings.leaveIds} onChange={(e) => setSettings({...settings, leaveIds: e.target.value})} className="w-full p-2 md:p-3 border border-slate-200 rounded-lg text-base bg-white focus:ring-2 focus:ring-pink-300 outline-none" /></div>
+                            <div><label className="block text-sm font-bold text-slate-500 mb-1">上社團號碼:</label><input type="text" placeholder="例: 12,15" value={settings.clubIds} onChange={(e) => setSettings({...settings, clubIds: e.target.value})} className="w-full p-2 md:p-3 border border-slate-200 rounded-lg text-base bg-white focus:ring-2 focus:ring-pink-300 outline-none" /></div>
+                          </div>
+                        </div>
+                        <div className="mb-4 flex items-center justify-between bg-rose-50 p-4 rounded-xl border border-rose-100 shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <Unlock className="text-rose-500 shrink-0 pointer-events-none" size={20}/><span className="text-sm md:text-base font-bold text-rose-700 shrink-0">強制解鎖:</span>
+                            <input type="number" placeholder="座號" className="w-20 md:w-24 p-2 border border-rose-200 rounded-lg text-base bg-white text-center focus:outline-none focus:ring-2 focus:ring-rose-300 transition-all" value={unlockId} onChange={(e)=>setUnlockId(e.target.value)}/>
+                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); handleUnlock(); }} className="px-4 py-2 bg-rose-500 text-white rounded-lg text-sm md:text-base font-bold hover:bg-rose-600 shadow-sm transition-colors">執行</button>
+                          </div>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+                          <div className="absolute top-0 left-0 w-1 h-full bg-blue-400"></div><h5 className="font-bold text-slate-700 text-sm md:text-base mb-2">方式 B：匯入學生名單</h5>
+                          <textarea className="w-full h-32 p-3 border border-slate-200 rounded-xl text-base bg-white custom-scrollbar resize-y focus:ring-2 focus:ring-blue-300 outline-none leading-relaxed" placeholder="1,王小明&#10;2,陳小華" value={settings.bulkText} onChange={(e) => setSettings({...settings, bulkText: e.target.value})} />
+                        </div>
+                      </section>
+                      <section>
+                        <h4 className="text-sm md:text-base font-bold text-slate-400 mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">🔤 聯絡簿顯示字體</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5 p-2 bg-slate-50 rounded-xl border border-slate-100">
+                          <label className="flex-1 cursor-pointer"><input type="radio" name="cbFont" value="sans" className="peer hidden" checked={settings.cbFont === 'sans'} onChange={(e)=>setSettings({...settings, cbFont: e.target.value})} /><div className="text-center py-3 h-full flex items-center justify-center rounded-lg text-sm md:text-base font-bold text-slate-500 peer-checked:bg-white peer-checked:text-pink-600 peer-checked:shadow-sm transition-all border border-transparent peer-checked:border-pink-100">黑體(預設)</div></label>
+                          <label className="flex-1 cursor-pointer"><input type="radio" name="cbFont" value="kai" className="peer hidden" checked={settings.cbFont === 'kai'} onChange={(e)=>setSettings({...settings, cbFont: e.target.value})} /><div className="text-center py-3 h-full flex items-center justify-center rounded-lg text-sm md:text-base font-bold text-slate-500 font-kai peer-checked:bg-white peer-checked:text-pink-600 peer-checked:shadow-sm transition-all border border-transparent peer-checked:border-pink-100">標楷體</div></label>
+                          <label className="flex-1 cursor-pointer"><input type="radio" name="cbFont" value="bopomofo" className="peer hidden" checked={settings.cbFont === 'bopomofo'} onChange={(e)=>setSettings({...settings, cbFont: e.target.value})} /><div className="text-center py-2 px-1 h-full flex flex-col items-center justify-center rounded-lg font-bold text-slate-500 font-bopomofo peer-checked:bg-white peer-checked:text-pink-600 peer-checked:shadow-sm transition-all border border-transparent peer-checked:border-pink-100 leading-tight"><span className="text-sm md:text-base">含漢字注音</span><span className="text-[10px] md:text-xs font-sans opacity-70 mt-0.5">(三種字型)</span></div></label>
+                          <label className="flex-1 cursor-pointer"><input type="radio" name="cbFont" value="zhuyinOnly" className="peer hidden" checked={settings.cbFont === 'zhuyinOnly'} onChange={(e)=>setSettings({...settings, cbFont: e.target.value})} /><div className="text-center py-2 px-1 h-full flex flex-col items-center justify-center rounded-lg font-bold text-slate-500 font-zhuyin-only peer-checked:bg-white peer-checked:text-pink-600 peer-checked:shadow-sm transition-all border border-transparent peer-checked:border-pink-100 leading-tight"><span className="text-sm md:text-base">僅注音</span><span className="text-[10px] md:text-xs font-sans opacity-70 mt-0.5">(文鼎寬字)</span></div></label>
+                        </div>
+                        <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-amber-900 shadow-sm text-sm md:text-base">
+                          <h6 className="font-black mb-2 flex items-center gap-1.5 text-amber-700">💡 字型安裝說明</h6>
+                          <p className="text-xs md:text-sm mb-3 font-medium opacity-80 leading-relaxed">為確保聯絡簿的注音排版正確顯示，請先上網搜尋下載並在電腦安裝以下免費字型：</p>
+                          <div className="bg-white/60 rounded-lg p-3 border border-amber-200/50 mb-3 space-y-3">
+                            <div><span className="font-bold text-amber-700 text-xs md:text-sm px-2 py-1 bg-amber-100 rounded-md mr-2">對應：含漢字注音</span><ul className="list-disc ml-6 text-xs md:text-sm font-bold mt-2 space-y-1 text-amber-800"><li>王漢宗中楷體注音</li><li>文鼎中楷注音</li><li>全字庫注音體</li></ul></div>
+                            <div className="border-t border-amber-100 pt-3"><span className="font-bold text-blue-700 text-xs md:text-sm px-2 py-1 bg-blue-100 rounded-md mr-2">對應：僅注音</span><ul className="list-disc ml-6 text-xs md:text-sm font-bold mt-2 text-amber-800"><li>文鼎注音寬字</li></ul></div>
+                          </div>
+                          <div className="text-xs md:text-sm font-black text-rose-500 bg-rose-50 px-4 py-3 rounded-lg border border-rose-100 flex items-start gap-1.5"><span className="shrink-0 mt-0.5">⚠️</span><span>安裝完畢後，請務必「重新整理」此網頁，新字型才會生效！</span></div>
+                        </div>
+                      </section>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isResetConfirmOpen && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[999999] p-4">
+                  <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+                    <div className="w-20 h-20 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6"><RotateCcw size={40} className="pointer-events-none"/></div>
+                    <h3 className="text-xl font-black text-slate-800 mb-3">確定重置打卡？</h3>
+                    <p className="text-slate-500 text-sm mb-6">所有的學生打卡狀態都將恢復為「未到」。</p>
+                    <div className="flex gap-4">
+                      <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsResetConfirmOpen(false); }} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-xl transition-colors hover:bg-slate-200">取消</button>
+                      <button type="button" onClickCapture={(e) => { e.stopPropagation(); setStudents(prev => prev.map(s => ({ ...s, arrivalTime: null, status: 'absent' }))); setIsResetConfirmOpen(false); showToast('✅ 狀態已全部重置！'); }} className="flex-1 py-4 bg-red-500 text-white font-bold rounded-xl shadow-lg transition-colors hover:bg-red-600">確定</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        function App() {
+          const [currentUser, setCurrentUser] = React.useState(null);
+
+          const handleLogin = (user) => setCurrentUser(user);
+          const handleLogout = () => setCurrentUser(null);
+
+          if (!currentUser) return <LoginScreen onLogin={handleLogin} />;
+          return <SchoolCheckInKing currentUser={currentUser} onLogout={handleLogout} />;
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
