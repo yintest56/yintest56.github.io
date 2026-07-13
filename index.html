@@ -23,6 +23,23 @@
         });
     </script>
 
+    <!-- 引入 Firebase (Realtime Database) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBq0CBjXEXUsIaXR8q61FMIMWuEDjrql04",
+            authDomain: "my-first-firebase-9f9c8.firebaseapp.com",
+            databaseURL: "https://my-first-firebase-9f9c8-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "my-first-firebase-9f9c8",
+            storageBucket: "my-first-firebase-9f9c8.firebasestorage.app",
+            messagingSenderId: "751174424262",
+            appId: "1:751174424262:web:b8e3777a54749b82bce9c7"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+    </script>
+
     <!-- 網頁自訂樣式 -->
     <style>
         body { margin: 0; overflow: hidden; background-color: #f3f4f6; }
@@ -43,169 +60,6 @@
     <script type="text/babel" data-presets="react-classic">
         const { useState, useEffect, useCallback } = React;
 
-        // =============================================
-        // 三層權限系統 (帳密以SHA-256雜湊儲存，明文帳密請見 code.csv)
-        // 角色: admin(管理者) | teacher(教師) | student:N(學生)
-        // =============================================
-        const AUTH_DB = {
-  "admin": { hash: "f0ce0e86206541c60bc47be815f83eba98004f63c883e6d71ff5cc929cb5f9ca", role: "admin" },
-  "teacher01": { hash: "ae70cd7134a079fb3816a524ee25a51284d0b137f1cbd77b9182dd7a89a0ac53", role: "teacher" },
-  "teacher02": { hash: "17851acca8ce336d42ab355d6bf3273dcf8bd057ef7ab37e9279ad5ae970678d", role: "teacher" },
-  "teacher03": { hash: "62fce12b572622a0607efcb07093d938f455a41bdcd43c82af30699d48aa48de", role: "teacher" },
-  "teacher04": { hash: "87d8ee29943b52ec2d48633bbaa7311984d3a6d5b046a4a87b4ee9bfd625a56b", role: "teacher" },
-  "teacher05": { hash: "89867ebb7ad3134bc525421e22a4702bed2927326a39f1c6a81c53cf8391e833", role: "teacher" },
-  "teacher06": { hash: "b72bcec76d0486a92640418344b9f66f99a931302992cc5c4c266cdf04390442", role: "teacher" },
-  "teacher07": { hash: "369d3080438aa463dfa3ce588139fc74c5d97384b1cda072573412c663b72469", role: "teacher" },
-  "teacher08": { hash: "23fbed1844fb7d41ba8e40e8029dfb1082ed197792249f7a1e3fb5498aa18c74", role: "teacher" },
-  "teacher09": { hash: "8f0927de1543c843f97cfdeb401b0eea9d2db75b0d3252004a626c5b9a136fb7", role: "teacher" },
-  "teacher10": { hash: "319ff17d7d63282aae1406a57558ddd4d9b0c2edc26d7af5310bee80a86720fb", role: "teacher" },
-  "student01": { hash: "91d3043f416b369909f5d8665163f157da48ad7917f0932aa3fb2d06e4f37e0b", role: "student:1" },
-  "student02": { hash: "bb5ff0a28f355777a138248b5e91f3ca3bb1dc3c00b47b41a2cea14242e9ab29", role: "student:2" },
-  "student03": { hash: "ad51af9c4ebf08d02c3ea38be54d26142376be1e4e69df29208b882831f3b36a", role: "student:3" },
-  "student04": { hash: "0683f1aff91d621861eeaa065fbe082667d6fcd9d7722d4d0faf93dbed593078", role: "student:4" },
-  "student05": { hash: "a42ebae833e4181483db585640c0077332af505b12d137308a0f6627a5483646", role: "student:5" },
-  "student06": { hash: "bb0d9e26b010d48adbf58d640036eaed60dfe0d4936e3428af5e9163342d5ec2", role: "student:6" },
-  "student07": { hash: "74b4ac62e77ba34d5f6afb9c0bf8cc5cb147f5443363ef503e90049e22608bfa", role: "student:7" },
-  "student08": { hash: "b11257ac62787a21d68783e354727b620f483ea539fc83bbacf4172bd198a2fe", role: "student:8" },
-  "student09": { hash: "95988a929244bf3b58b335a2ac1116d6c7a8bac565f45d8bb8d87ce75d13f1b9", role: "student:9" },
-  "student10": { hash: "33d2e8315c997158eaae1f68cef6beb58a0045eaa1bfb621c572b13f4ba6b305", role: "student:10" },
-  "student11": { hash: "43822e89b7a10937ebbb8ff8e9612201b4bfcd6026c6558366c7e2b74ad0e53e", role: "student:11" },
-  "student12": { hash: "8eafe135c3517fa88e3cc607fe1fbbcd922e3bca1c17d5653698e8587205a61a", role: "student:12" },
-  "student13": { hash: "92af51165d391c2bb12da81c71ed1aa924fc5e7f3c4f8d59e354e8c02498f08c", role: "student:13" },
-  "student14": { hash: "492c80c15a50a5d26d2aa288f63182785150799d717ed713525ccc046335a215", role: "student:14" },
-  "student15": { hash: "b498e9cc567e7dd80cb97e7df20d15bb6b7a7e24251bf6d6111c2cb50f854c31", role: "student:15" },
-  "student16": { hash: "d51b4deee46d26581d5ce77d567fe3163d8b58e21916c0e56bd6293f980d015f", role: "student:16" },
-  "student17": { hash: "32a3bf9ebf05555a1ab8c0819077dd6d5d51b18868b9f6961346fee870942c9b", role: "student:17" },
-  "student18": { hash: "1ac0096652773b73d9ae8c9d344c0e9488e75492d0f833bd31834b5f8a268bc0", role: "student:18" },
-  "student19": { hash: "addced5dc09ab63215f5a1a1e18837991fce227d7a82c3208740174f5c27de9c", role: "student:19" },
-  "student20": { hash: "90db4f49705f58aa9899121cc541c0ce7da8a32e92022da53ecfd9db4a9c1063", role: "student:20" },
-  "student21": { hash: "9c12d82cc5b3d67c83560d98c8c277c583b2cc32ea1cce17a7a502ef44dab29a", role: "student:21" },
-  "student22": { hash: "8f1a2766be7ae5876e31c36f7062aef9965baf258fb82afe8543ddd14f9b9dc5", role: "student:22" },
-  "student23": { hash: "f8c6074fa00108d3f8de7e4b26c112f46f1fa585b10d474347d22a13db17e050", role: "student:23" },
-  "student24": { hash: "e4af4644bc497099fc807b03539ca5745b5083939b20f9c9b0c47bb0edf98312", role: "student:24" },
-  "student25": { hash: "4e8dd93cfa08eba58962d37fc0b416b365e190e681bebdd5fb14cb230ff57d19", role: "student:25" },
-  "student26": { hash: "d1cae013bf868aea17b325608031ea2b32fe358d07c1714ea359708407ac6849", role: "student:26" },
-  "student27": { hash: "2e757362deb044fa88889abf1e38e0f0e14d7d45e9b5f24be6a0529a0577758d", role: "student:27" },
-  "student28": { hash: "20abc6bcf601136d803967c57c73ba19500736c6516e01f71fd807b2de10ab4a", role: "student:28" },
-  "student29": { hash: "3945a0523066577f4bdbfb3e0d13554956ce5d83b5e9ee5c39d4632b798641c0", role: "student:29" },
-  "student30": { hash: "327ca9117575f6088a515f184c35255beafb0ac4597aecbfa5dfc65f976c1650", role: "student:30" },
-  "student31": { hash: "fb6e89dc11b6c8e7cd9c093e3cc447849f63ba9ab5c76aad0978c3c95fbb889d", role: "student:31" },
-  "student32": { hash: "34d8f5391028ff24804d57791487721b2f516f653dd323ae8da4e51d5342020c", role: "student:32" },
-  "student33": { hash: "7a93a93b1a2e2b857ded02d70c785d5edd0e3a16cf50056f90586810b8d12dfb", role: "student:33" },
-  "student34": { hash: "3ba381e28354dd0b63418214b343fb13b3ec14da1ad626d716158c2a83d0866e", role: "student:34" },
-  "student35": { hash: "262975c68495edf9c981c77eb84058baebd6d24d665b93dffc60ecb5a8f7c081", role: "student:35" },
-  "student36": { hash: "f2eec4de72a51667a6a2c94d35be4093e1a62ea40de733d3dca53561de08b25a", role: "student:36" },
-  "student37": { hash: "d917692dbc9968bdbb6c8ab4a522afa8af2343d1412d4c04421772504404ad2d", role: "student:37" },
-  "student38": { hash: "c3a4b9dae02cadf356dc20f72d8d1c13c452235e6940e505edec005858943bc0", role: "student:38" },
-  "student39": { hash: "8313f3048b64fe5b4b0449d36f926d4a702fd2245a88f9cf1640af6a0c885df9", role: "student:39" },
-  "student40": { hash: "a33992cc34d5528ad0d01e909c21260b098004d58ee34b6912715974f25dc882", role: "student:40" },
-  "student41": { hash: "066fc3b547c9e80e3111b00a13169955ce411b9ad85efb6c190125488a8394c7", role: "student:41" },
-  "student42": { hash: "9f91298798ea5add33b418424f3b0ca6eb9a804add10e304bff2ea4e1587d99f", role: "student:42" },
-  "student43": { hash: "83046568066192d5a34e5e15e26a35deddf0ed383eac7cb721835fce2945009b", role: "student:43" },
-  "student44": { hash: "f7f926b803785289b6293dbe134d3c2e08be228eaa901cec9ce1881179e494d1", role: "student:44" },
-  "student45": { hash: "53acff83a00c76d40365f59d7cc2cad104a9dcb7b28e9a293eba374d8af68d0e", role: "student:45" },
-  "student46": { hash: "23cffbc371abb94e103b07fd836a32bb2d290b110fac6f422bc9cdfac8b18be0", role: "student:46" },
-  "student47": { hash: "982d44ad5268cb56f8cf5515723437c4bfaf3015f16dece9291abbf59fa1aa7b", role: "student:47" },
-  "student48": { hash: "5fdd8879f8522fbc064f81d82ff2db7363e35f6d29f905c58b79b47115c56a6f", role: "student:48" },
-  "student49": { hash: "108523d776e30825be2dd16860125729663542d84717f8221eb2b40e75025128", role: "student:49" },
-  "student50": { hash: "8d2ba048bc89f03657d99cca9449c04a13466d617a12bf083dd543b9043db57f", role: "student:50" }
-        };
-
-        async function sha256(message) {
-          const msgBuffer = new TextEncoder().encode(message);
-          const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-          const hashArray = Array.from(new Uint8Array(hashBuffer));
-          return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        async function authLogin(username, password) {
-          const entry = AUTH_DB[username];
-          if (!entry) return null;
-          const h = await sha256(password);
-          if (h !== entry.hash) return null;
-          return { username, role: entry.role };
-        }
-
-        function getPermissions(role) {
-          if (!role) return { canEdit: false, canCheckIn: false, canAdmin: false, myStudentId: null };
-          if (role === 'admin') return { canEdit: true, canCheckIn: true, canAdmin: true, myStudentId: null };
-          if (role === 'teacher') return { canEdit: true, canCheckIn: false, canAdmin: false, myStudentId: null };
-          if (role.startsWith('student:')) {
-            const id = parseInt(role.split(':')[1]);
-            return { canEdit: false, canCheckIn: true, canAdmin: false, myStudentId: id };
-          }
-          return { canEdit: false, canCheckIn: false, canAdmin: false, myStudentId: null };
-        }
-
-        // 登入頁面元件
-        function LoginScreen({ onLogin }) {
-          const [username, setUsername] = React.useState('');
-          const [password, setPassword] = React.useState('');
-          const [error, setError] = React.useState('');
-          const [loading, setLoading] = React.useState(false);
-
-          const handleSubmit = async () => {
-            if (!username.trim() || !password.trim()) { setError('請輸入帳號和密碼'); return; }
-            setLoading(true);
-            setError('');
-            const user = await authLogin(username.trim(), password);
-            setLoading(false);
-            if (user) {
-              onLogin(user);
-            } else {
-              setError('帳號或密碼錯誤');
-            }
-          };
-
-          const handleGuest = () => onLogin({ username: 'guest', role: 'guest' });
-
-          return (
-            <div className="min-h-screen w-full bg-gradient-to-br from-pink-50 via-white to-yellow-50 flex flex-col items-center justify-center font-sans p-4">
-              <div className="w-full max-w-sm">
-                <div className="text-center mb-8">
-                  <div className="inline-flex bg-gradient-to-r from-yellow-400 to-pink-500 p-4 rounded-2xl shadow-lg mb-4 rotate-3">
-                    <Star className="text-white w-10 h-10 fill-current" />
-                  </div>
-                  <h1 className="text-2xl font-black text-slate-700">⭐學生打卡＆數位聯絡簿⭐</h1>
-                  <p className="text-slate-400 text-sm mt-1">請登入以使用完整功能</p>
-                </div>
-                <div className="bg-white rounded-3xl shadow-xl p-8 border border-pink-50">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-500 mb-1.5">帳號</label>
-                      <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                        placeholder="輸入帳號" autoComplete="username"
-                        className="w-full px-4 py-3 border border-slate-200 rounded-xl text-base focus:ring-2 focus:ring-pink-300 outline-none transition-all" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-500 mb-1.5">密碼</label>
-                      <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                        placeholder="輸入密碼" autoComplete="current-password"
-                        className="w-full px-4 py-3 border border-slate-200 rounded-xl text-base focus:ring-2 focus:ring-pink-300 outline-none transition-all" />
-                    </div>
-                    {error && <div className="text-red-500 text-sm font-bold text-center bg-red-50 py-2 rounded-lg">{error}</div>}
-                    <button type="button" onClick={handleSubmit} disabled={loading}
-                      className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-pink-600 text-white font-black rounded-xl shadow-md hover:shadow-lg transition-all text-base disabled:opacity-60">
-                      {loading ? '驗證中...' : '🔐 登入'}
-                    </button>
-                    <button type="button" onClick={handleGuest}
-                      className="w-full py-3 text-slate-400 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm border border-slate-100">
-                      👁️ 以訪客身分瀏覽（僅限閱讀）
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-6 text-center text-xs text-slate-300 space-y-1">
-                  <div>🔒 管理者：1名｜教師：10名｜學生：50名</div>
-                  <div>帳密資料請見 code.csv</div>
-                </div>
-              </div>
-            </div>
-          );
-        }
-
-
         // --- 內建圖示庫 (確保單檔運行絕對穩定) ---
         const IconBase = ({ size = 24, className = "", children }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
@@ -221,6 +75,11 @@
         const Upload = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></IconBase>;
         const Star = (p) => <IconBase {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></IconBase>;
         const FileText = (p) => <IconBase {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></IconBase>;
+        const LogOut = (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></IconBase>;
+        const UserRound = (p) => <IconBase {...p}><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></IconBase>;
+        const Trash2 = (p) => <IconBase {...p}><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconBase>;
+        const ShieldCheck = (p) => <IconBase {...p}><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V6l8-3 8 3v7Z"/><path d="m9 12 2 2 4-4"/></IconBase>;
+        const KeyRound = (p) => <IconBase {...p}><path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></IconBase>;
 
         // --- 核心組件與邏輯 ---
         function useLocalStorage(key, initialValue) {
@@ -256,6 +115,242 @@
           return [storedValue, setValue];
         }
 
+        // --- Firebase Realtime Database 同步 Hook (取代 localStorage，供所有登入者共用) ---
+        function useFirebaseState(path, initialValue) {
+          const [storedValue, setStoredValue] = useState(initialValue);
+          const [loaded, setLoaded] = useState(false);
+
+          useEffect(() => {
+            const ref = db.ref(path);
+            const listener = ref.on('value', (snap) => {
+              const val = snap.val();
+              if (val === null || val === undefined) {
+                setStoredValue(initialValue);
+              } else if (typeof initialValue === 'object' && !Array.isArray(initialValue) && initialValue !== null) {
+                setStoredValue({ ...initialValue, ...val });
+              } else {
+                setStoredValue(val);
+              }
+              setLoaded(true);
+            }, (err) => { console.error('Firebase read error:', path, err); setLoaded(true); });
+            return () => ref.off('value', listener);
+          }, [path]);
+
+          const setValue = useCallback((value) => {
+            setStoredValue((prev) => {
+              const valueToStore = value instanceof Function ? value(prev) : value;
+              db.ref(path).set(valueToStore).catch((err) => console.error('Firebase write error:', path, err));
+              return valueToStore;
+            });
+          }, [path]);
+
+          return [storedValue, setValue, loaded];
+        }
+
+        // --- 權限系統設定 ---
+        const ROLE_LABELS = { admin: '👑 第一層・管理者', editor: '✏️ 第二層・聯絡簿編修', checker: '✅ 第三層・打卡員', guest: '👀 第四層・訪客' };
+        const ROLE_SHORT = { admin: '管理者', editor: '編修者', checker: '打卡員', guest: '訪客' };
+        const ROLE_LIMITS = { editor: 10, checker: 50 };
+        const canManage = (role) => role === 'admin';
+        const canEditContactBook = (role) => role === 'admin' || role === 'editor';
+        const canCheckIn = (role) => role === 'admin' || role === 'checker';
+
+        // --- 登入狀態 Hook (以 sessionStorage 暫存登入身分，關閉分頁即登出) ---
+        function useAuth() {
+          const [user, setUser] = useState(null);
+          const [authReady, setAuthReady] = useState(false);
+          useEffect(() => {
+            try {
+              const saved = sessionStorage.getItem('king-auth-user');
+              if (saved) setUser(JSON.parse(saved));
+            } catch (e) { /* ignore */ }
+            setAuthReady(true);
+          }, []);
+          const login = useCallback((userObj) => {
+            setUser(userObj);
+            try { sessionStorage.setItem('king-auth-user', JSON.stringify(userObj)); } catch (e) {}
+          }, []);
+          const logout = useCallback(() => {
+            setUser(null);
+            try { sessionStorage.removeItem('king-auth-user'); } catch (e) {}
+          }, []);
+          return { user, authReady, login, logout };
+        }
+
+        // --- 登入畫面 ---
+        function LoginScreen({ onLogin, bootstrapping }) {
+          const [username, setUsername] = useState('');
+          const [password, setPassword] = useState('');
+          const [error, setError] = useState('');
+          const [loading, setLoading] = useState(false);
+
+          const handleSubmit = async () => {
+            setError('');
+            if (!username.trim() || !password) { setError('請輸入帳號與密碼'); return; }
+            setLoading(true);
+            try {
+              const snap = await db.ref('users').orderByChild('username').equalTo(username.trim()).once('value');
+              const val = snap.val();
+              if (!val) { setError('❌ 帳號不存在'); setLoading(false); return; }
+              const key = Object.keys(val)[0];
+              const record = val[key];
+              if (record.active === false) { setError('⚠️ 此帳號已被停用，請聯絡管理者'); setLoading(false); return; }
+              if (record.password !== password) { setError('❌ 密碼錯誤'); setLoading(false); return; }
+              onLogin({ uid: key, username: record.username, role: record.role, name: record.name || record.username });
+            } catch (err) {
+              console.error(err);
+              setError('⚠️ 連線失敗，請確認網路連線或 Firebase 設定');
+            }
+            setLoading(false);
+          };
+
+          const handleGuest = () => onLogin({ uid: 'guest', username: 'guest', role: 'guest', name: '訪客' });
+
+          return (
+            <div className="min-h-[100dvh] w-full bg-gradient-to-br from-pink-50 via-white to-sky-50 flex items-center justify-center p-4 font-sans">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 border-2 border-pink-50">
+                <div className="flex flex-col items-center mb-6">
+                  <div className="bg-gradient-to-r from-yellow-400 to-pink-500 p-3 rounded-2xl shadow-md rotate-3 mb-3"><Star className="text-white w-7 h-7 fill-current pointer-events-none" /></div>
+                  <h1 className="text-xl font-black text-slate-700 text-center pointer-events-none">⭐學生打卡＆數位聯絡簿⭐</h1>
+                  <p className="text-slate-400 text-xs font-bold mt-1 pointer-events-none">{bootstrapping ? '系統初始化中，請稍候...' : '請登入以繼續使用'}</p>
+                </div>
+                <div className="space-y-3">
+                  <input type="text" placeholder="帳號" value={username} onChange={(e) => setUsername(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }} className="w-full p-3 border border-slate-200 rounded-xl text-base bg-slate-50 focus:ring-2 focus:ring-pink-300 outline-none" />
+                  <input type="password" placeholder="密碼" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }} className="w-full p-3 border border-slate-200 rounded-xl text-base bg-slate-50 focus:ring-2 focus:ring-pink-300 outline-none" />
+                  {error && <div className="text-rose-500 text-sm font-bold text-center bg-rose-50 py-2 rounded-lg">{error}</div>}
+                  <button type="button" disabled={loading || bootstrapping} onClickCapture={(e) => { e.stopPropagation(); handleSubmit(); }} className="w-full py-3 bg-pink-500 hover:bg-pink-600 text-white rounded-xl font-black shadow-md transition-colors disabled:opacity-50">{loading ? '登入中...' : '登入'}</button>
+                  <div className="flex items-center gap-2 my-2"><div className="flex-1 h-px bg-slate-100"/><span className="text-xs text-slate-300 font-bold">或</span><div className="flex-1 h-px bg-slate-100"/></div>
+                  <button type="button" onClickCapture={(e) => { e.stopPropagation(); handleGuest(); }} className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors">👀 訪客瀏覽（僅供檢視）</button>
+                </div>
+                <p className="text-[11px] text-slate-300 text-center mt-6 leading-relaxed">管理者初始帳號 admin／初始密碼 admin123<br/>首次登入後請至右上角「帳號」選單修改密碼</p>
+              </div>
+            </div>
+          );
+        }
+
+        // --- 帳號權限管理 (僅管理者可見) ---
+        function AccountManager({ users, onSave, showToast }) {
+          const userList = Object.entries(users || {}).map(([uid, u]) => ({ uid, ...u }));
+          const editors = userList.filter(u => u.role === 'editor');
+          const checkers = userList.filter(u => u.role === 'checker');
+          const [newUser, setNewUser] = useState({ username: '', password: '', name: '', role: 'editor' });
+          const [formError, setFormError] = useState('');
+
+          const handleAdd = () => {
+            setFormError('');
+            const uname = newUser.username.trim();
+            if (!uname || !newUser.password) { setFormError('請輸入帳號與密碼'); return; }
+            if (userList.some(u => u.username === uname)) { setFormError('此帳號已存在'); return; }
+            if (newUser.role === 'editor' && editors.length >= ROLE_LIMITS.editor) { setFormError(`第二層使用者已達上限（${ROLE_LIMITS.editor} 人）`); return; }
+            if (newUser.role === 'checker' && checkers.length >= ROLE_LIMITS.checker) { setFormError(`第三層使用者已達上限（${ROLE_LIMITS.checker} 人）`); return; }
+            const newKey = db.ref('users').push().key;
+            onSave({ ...users, [newKey]: { username: uname, password: newUser.password, name: newUser.name.trim() || uname, role: newUser.role, active: true } });
+            setNewUser({ username: '', password: '', name: '', role: 'editor' });
+            showToast('✅ 帳號已新增！');
+          };
+
+          const handleToggleActive = (uid) => onSave({ ...users, [uid]: { ...users[uid], active: users[uid].active === false } });
+          const handleResetPassword = (uid) => {
+            const pw = prompt('請輸入新密碼：');
+            if (pw) { onSave({ ...users, [uid]: { ...users[uid], password: pw } }); showToast('✅ 密碼已重設！'); }
+          };
+          const handleDelete = (uid) => {
+            if (users[uid]?.role === 'admin') return;
+            if (!confirm(`確定要刪除帳號「${users[uid]?.username}」嗎？`)) return;
+            const copy = { ...users };
+            delete copy[uid];
+            onSave(copy);
+            showToast('🗑️ 帳號已刪除！');
+          };
+
+          return (
+            <section>
+              <h4 className="text-sm md:text-base font-bold text-slate-400 mb-3 border-b border-slate-100 pb-2 flex items-center gap-2"><ShieldCheck size={18} className="text-emerald-500 pointer-events-none"/> 帳號權限管理（四層權限）</h4>
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center"><div className="text-xs font-bold text-amber-600">第一層・管理者</div><div className="text-lg font-black text-amber-700">1 / 1</div></div>
+                <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 text-center"><div className="text-xs font-bold text-sky-600">第二層・編修聯絡簿</div><div className="text-lg font-black text-sky-700">{editors.length} / {ROLE_LIMITS.editor}</div></div>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center"><div className="text-xs font-bold text-emerald-600">第三層・打卡員</div><div className="text-lg font-black text-emerald-700">{checkers.length} / {ROLE_LIMITS.checker}</div></div>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm mb-4">
+                <h5 className="font-bold text-slate-700 text-sm mb-3">➕ 新增第二／三層帳號</h5>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                  <input type="text" placeholder="帳號" value={newUser.username} onChange={(e) => setNewUser({...newUser, username: e.target.value})} className="p-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-pink-300" />
+                  <input type="text" placeholder="密碼" value={newUser.password} onChange={(e) => setNewUser({...newUser, password: e.target.value})} className="p-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-pink-300" />
+                  <input type="text" placeholder="顯示名稱 (選填)" value={newUser.name} onChange={(e) => setNewUser({...newUser, name: e.target.value})} className="p-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-pink-300" />
+                  <select value={newUser.role} onChange={(e) => setNewUser({...newUser, role: e.target.value})} className="p-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-pink-300">
+                    <option value="editor">第二層・編修聯絡簿</option>
+                    <option value="checker">第三層・打卡</option>
+                  </select>
+                </div>
+                {formError && <div className="text-rose-500 text-xs font-bold mb-2">{formError}</div>}
+                <button type="button" onClickCapture={(e) => { e.stopPropagation(); handleAdd(); }} className="w-full sm:w-auto px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-bold transition-colors">新增帳號</button>
+              </div>
+
+              <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                {userList.filter(u => u.role !== 'admin').length === 0 && <div className="text-slate-300 text-sm italic text-center py-4">尚未建立第二／三層帳號</div>}
+                {userList.filter(u => u.role !== 'admin').map(u => (
+                  <div key={u.uid} className="flex items-center justify-between gap-2 bg-white border border-slate-100 rounded-xl p-3 shadow-sm">
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-700 text-sm truncate">{u.name} <span className="text-slate-300 font-normal">@{u.username}</span></div>
+                      <div className="text-xs font-bold text-slate-400">{ROLE_SHORT[u.role]}{u.active === false && <span className="text-rose-400 ml-2">（已停用）</span>}</div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button type="button" onClickCapture={(e) => { e.stopPropagation(); handleResetPassword(u.uid); }} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-500 transition-colors" title="重設密碼"><KeyRound size={16} className="pointer-events-none"/></button>
+                      <button type="button" onClickCapture={(e) => { e.stopPropagation(); handleToggleActive(u.uid); }} className={`px-2 py-1.5 rounded-lg text-xs font-bold transition-colors ${u.active === false ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{u.active === false ? '啟用' : '停用'}</button>
+                      <button type="button" onClickCapture={(e) => { e.stopPropagation(); handleDelete(u.uid); }} className="p-2 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-500 transition-colors" title="刪除帳號"><Trash2 size={16} className="pointer-events-none"/></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        }
+
+        // --- 使用者選單 (顯示身分、修改密碼、登出) ---
+        function UserMenu({ user, onLogout, showToast }) {
+          const [open, setOpen] = useState(false);
+          const [showChangePw, setShowChangePw] = useState(false);
+          const [pw1, setPw1] = useState('');
+          const [pw2, setPw2] = useState('');
+
+          const handleChangePassword = async () => {
+            if (!pw1 || pw1.length < 4) { showToast('⚠️ 密碼至少需 4 碼'); return; }
+            if (pw1 !== pw2) { showToast('⚠️ 兩次密碼輸入不一致'); return; }
+            try {
+              await db.ref(`users/${user.uid}`).update({ password: pw1 });
+              showToast('✅ 密碼已更新！');
+              setShowChangePw(false); setPw1(''); setPw2('');
+            } catch (err) { showToast('❌ 更新失敗，請稍後再試'); }
+          };
+
+          return (
+            <div className="relative">
+              <button type="button" onClickCapture={(e) => { e.stopPropagation(); setOpen(!open); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-sm font-bold text-slate-600 border border-slate-200 transition-colors">
+                <UserRound size={18} className="pointer-events-none"/>
+                <span className="hidden sm:inline pointer-events-none">{user.name}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-400 pointer-events-none">{ROLE_SHORT[user.role]}</span>
+              </button>
+              {open && (
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[999999]" onClick={(e) => e.stopPropagation()}>
+                  <div className="px-3 py-2 text-xs font-bold text-slate-400 border-b border-slate-50 mb-1">{ROLE_LABELS[user.role]}</div>
+                  {user.role !== 'guest' && !showChangePw && (
+                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); setShowChangePw(true); }} className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 text-sm font-bold text-slate-600 flex items-center gap-2"><KeyRound size={16}/> 修改密碼</button>
+                  )}
+                  {showChangePw && (
+                    <div className="px-3 py-2 space-y-2">
+                      <input type="password" placeholder="新密碼" value={pw1} onChange={(e) => setPw1(e.target.value)} className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-pink-300" />
+                      <input type="password" placeholder="確認新密碼" value={pw2} onChange={(e) => setPw2(e.target.value)} className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-pink-300" />
+                      <button type="button" onClickCapture={(e) => { e.stopPropagation(); handleChangePassword(); }} className="w-full py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-sm font-bold transition-colors">確認修改</button>
+                    </div>
+                  )}
+                  <button type="button" onClickCapture={(e) => { e.stopPropagation(); onLogout(); }} className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-rose-50 text-sm font-bold text-rose-500 flex items-center gap-2 mt-1"><LogOut size={16}/> 登出</button>
+                </div>
+              )}
+            </div>
+          );
+        }
+
         const ClockDisplay = ({ clockStyleIndex, onClick }) => {
           const [time, setTime] = useState(new Date());
           useEffect(() => {
@@ -278,8 +373,7 @@
           );
         };
 
-        function SchoolCheckInKing({ currentUser, onLogout }) {
-          const perms = getPermissions(currentUser?.role);
+        function SchoolCheckInKing({ user, onLogout }) {
           const [isMounted, setIsMounted] = useState(false);
           useEffect(() => {
             const timer = setTimeout(() => { setIsMounted(true); }, 200); 
@@ -300,18 +394,23 @@
             setTimeout(() => setToastMessage(''), 3500);
           }, []);
 
-          const [settings, setSettings] = useLocalStorage('king-v6-settings', {
+          const [settings, setSettings, settingsLoaded] = useFirebaseState('appData/settings', {
             totalStudents: 30, idealTime: '07:30', taskEndTime: '08:30', cbDirection: 'horizontal',
             cbFont: 'sans', cbFontSize: 32, clockStyle: 0, viewMode: 'both', showTasks: true,
             showListNumber: true, emptyIds: '', leaveIds: '', clubIds: '', bulkText: '', 
           });
 
           const [isEditing, setIsEditing] = useState(false);
-          // 僅 admin/teacher 可進入編輯模式
-          const canActuallyEdit = perms.canEdit;
-          const [students, setStudents] = useLocalStorage('king-v6-students', []);
-          const [contactBookData, setContactBookData] = useLocalStorage('king-v6-cb-data', {});
-          const [taskData, setTaskData] = useLocalStorage('king-v6-task-data', {});
+          const [students, setStudents, studentsLoaded] = useFirebaseState('appData/students', []);
+          const [contactBookData, setContactBookData, cbLoaded] = useFirebaseState('appData/contactBookData', {});
+          const [taskData, setTaskData, taskLoaded] = useFirebaseState('appData/taskData', {});
+          const [users, setUsers] = useFirebaseState('users', {});
+          const dataReady = settingsLoaded && studentsLoaded && cbLoaded && taskLoaded;
+
+          // --- 權限判斷 (依登入者角色) ---
+          const isAdmin = canManage(user.role);
+          const canEditCB = canEditContactBook(user.role);
+          const canDoCheckIn = canCheckIn(user.role);
           const [viewDate, setViewDate] = useState(new Date());
           const [isSettingsOpen, setIsSettingsOpen] = useState(false);
           const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
@@ -327,7 +426,7 @@
           const currentViewDateKey = formatDateKey(viewDate);
 
           useEffect(() => {
-            if (!isMounted) return;
+            if (!isMounted || !dataReady || !canEditCB) return;
             const isWeekend = viewDate.getDay() === 0 || viewDate.getDay() === 6;
             const isToday = currentViewDateKey === formatDateKey(new Date());
             setContactBookData(prev => {
@@ -338,10 +437,10 @@
               if (prev[currentViewDateKey] !== undefined) return prev;
               return { ...prev, [currentViewDateKey]: (isToday && !isWeekend) ? "靜心晨讀10分鐘\n繳交今日作業\n抄寫聯絡簿" : "" };
             });
-          }, [currentViewDateKey, viewDate, setContactBookData, setTaskData, isMounted, formatDateKey]);
+          }, [currentViewDateKey, viewDate, setContactBookData, setTaskData, isMounted, formatDateKey, dataReady, canEditCB]);
 
           useEffect(() => {
-            if (!isMounted) return;
+            if (!isMounted || !dataReady || !isAdmin) return;
             setStudents(prev => {
               let baseList = Array.from({ length: settings.totalStudents }, (_, i) => ({ id: i + 1, name: '', type: 'normal' }));
               const safeEmptyIds = settings.emptyIds || '';
@@ -389,7 +488,7 @@
                 return { ...base, type: finalType, arrivalTime: existing.arrivalTime, status: existing.status };
               });
             });
-          }, [settings.totalStudents, settings.emptyIds, settings.leaveIds, settings.clubIds, settings.bulkText, isMounted, setStudents]);
+          }, [settings.totalStudents, settings.emptyIds, settings.leaveIds, settings.clubIds, settings.bulkText, isMounted, setStudents, dataReady, isAdmin]);
 
           useEffect(() => {
             const handleMouseMove = (e) => {
@@ -431,8 +530,7 @@
           }, [isDraggingH, isDraggingV, isDraggingTaskW]);
 
           const handleCheckIn = useCallback((id) => {
-            // 學生只能打自己的卡
-            if (perms.myStudentId !== null && perms.myStudentId !== id) return;
+            if (!canDoCheckIn) { showToast('⚠️ 您沒有打卡權限'); return; }
             setStudents(prev => prev.map(s => {
               if (s.id !== id || s.type !== 'normal' || s.status !== 'absent') return s;
               const now = new Date();
@@ -441,10 +539,10 @@
               const ideal = new Date(); ideal.setHours(h, m, 0, 0);
               return { ...s, arrivalTime: timeStr, status: now <= ideal ? 'on-time' : 'late' };
             }));
-          }, [settings.idealTime, setStudents]);
+          }, [settings.idealTime, setStudents, canDoCheckIn, showToast]);
 
           const handleUnlock = () => {
-            if (!perms.canAdmin) { showToast('⛔ 無此操作權限'); return; }
+            if (!isAdmin) { showToast('⚠️ 僅管理者可執行強制解鎖'); return; }
             const id = parseInt(unlockId);
             setStudents(prev => prev.map(s => s.id === id ? { ...s, arrivalTime: null, status: 'absent' } : s));
             setUnlockId('');
@@ -469,6 +567,7 @@
           };
 
           const exportCSV = () => {
+            if (!isAdmin) { showToast('⚠️ 僅管理者可匯出報表'); return; }
             const dateStr = formatDateKey(viewDate);
             const cbText = (contactBookData[currentViewDateKey] || '').replace(/"/g, '""');
             const taskText = (taskData[currentViewDateKey] || '').replace(/"/g, '""');
@@ -506,11 +605,13 @@
           };
 
           const exportData = () => {
+            if (!isAdmin) { showToast('⚠️ 僅管理者可匯出備份'); return; }
             const data = { settings, students, contactBookData, taskData };
             triggerDownload(JSON.stringify(data), `⭐學生打卡＆數位聯絡簿⭐_備份_${formatDateKey(new Date())}.json`, 'application/json');
           };
 
           const handleFileUpload = (e) => {
+            if (!isAdmin) { showToast('⚠️ 僅管理者可還原備份'); e.target.value = ''; return; }
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
@@ -539,7 +640,7 @@
             e.target.value = '';
           };
 
-          if (!isMounted) {
+          if (!isMounted || !dataReady) {
             return (
               <div className="min-h-screen w-full bg-[#f3f4f6] flex flex-col items-center justify-center font-sans">
                 <div className="w-12 h-12 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin mb-4"></div>
@@ -608,11 +709,6 @@
 
           return (
             <div className="min-h-[100dvh] w-full bg-[#f3f4f6] flex flex-col font-sans selection:bg-pink-200 overflow-hidden">
-              {(currentUser?.role === 'guest' || (currentUser?.role && currentUser.role.startsWith('student:'))) && (
-                <div style={{ pointerEvents: 'none' }} className="fixed top-0 left-0 right-0 z-[9999] text-center py-1 text-xs font-bold bg-amber-400 text-amber-900">
-                  {currentUser?.role === 'guest' ? '👁️ 訪客模式：僅供閱讀，所有操作均受限' : `🎒 學生模式：您只能操作自己（座號 ${String(perms.myStudentId).padStart(2,'0')} 號）的打卡`}
-                </div>
-              )}
               {toastMessage && (
                 <div style={{ pointerEvents: 'none' }} className="fixed top-1/4 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-[999999] animate-bounce font-bold text-sm text-center tracking-wide border-2 border-white/20">
                   {toastMessage}
@@ -626,17 +722,7 @@
                   </div>
                   <h1 className="text-xl md:text-2xl font-black text-slate-700 pointer-events-none">⭐學生打卡＆數位聯絡簿⭐</h1>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {currentUser && (
-                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm">
-                      <span className="text-xs font-bold text-slate-400">
-                        {currentUser.role === 'admin' ? '👑 管理者' : currentUser.role === 'teacher' ? '👩‍🏫 教師' : currentUser.role === 'guest' ? '👁️ 訪客' : `🎒 學生${String(perms.myStudentId).padStart(2,'0')}`}
-                      </span>
-                      <span className="text-xs text-slate-300 hidden sm:inline">|</span>
-                      <span className="text-xs font-bold text-pink-500 hidden sm:inline">{currentUser.username}</span>
-                      <button type="button" onClick={onLogout} className="text-xs text-slate-400 hover:text-red-500 font-bold transition-colors ml-1" title="登出">✕ 登出</button>
-                    </div>
-                  )}
+
                 <div className="flex items-center gap-2 md:gap-3 flex-wrap">
                   <div className="flex bg-pink-50/50 p-1.5 rounded-xl sm:mr-4 border border-pink-100 shadow-sm">
                     <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, viewMode:'both'}); }} className={`flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 rounded-lg text-sm font-black transition-all hover:bg-white/90 ${settings.viewMode==='both'?'bg-white shadow-md text-pink-600':'text-slate-500'}`}>
@@ -650,23 +736,33 @@
                     </button>
                   </div>
                   
-                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsResetConfirmOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-pink-500 rounded-xl text-sm font-bold transition-colors">
-                    <RotateCcw size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">重置</span>
-                  </button>}
-                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); exportCSV(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-green-600 rounded-xl text-sm font-bold transition-colors" title="匯出報表">
-                    <FileText size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">CSV報表</span>
-                  </button>}
-                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); exportData(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-blue-500 rounded-xl text-sm font-bold transition-colors" title="匯出完整備份">
-                    <Download size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯出</span>
-                  </button>}
-                  {perms.canAdmin && <label className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-emerald-500 rounded-xl text-sm font-bold transition-colors cursor-pointer m-0 relative overflow-hidden" title="還原備份">
-                    <Upload size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯入</span>
-                    <input type="file" className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer" accept=".json" onChange={(e) => { e.stopPropagation(); handleFileUpload(e); }}/>
-                  </label>}
-                  {perms.canAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsSettingsOpen(true); }} className="flex items-center gap-2 ml-1 px-5 py-2.5 md:px-6 md:py-3 bg-slate-100 text-slate-700 hover:bg-pink-100 hover:text-pink-600 rounded-xl text-sm font-black transition-colors border border-slate-200 shadow-sm">
-                    <Settings size={20} className="pointer-events-none"/> <span className="pointer-events-none">設定</span>
-                  </button>}
-                </div>
+                  {isAdmin && (
+                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsResetConfirmOpen(true); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-pink-500 rounded-xl text-sm font-bold transition-colors">
+                      <RotateCcw size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">重置</span>
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); exportCSV(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-green-600 rounded-xl text-sm font-bold transition-colors" title="匯出報表">
+                      <FileText size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">CSV報表</span>
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); exportData(); }} className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-blue-500 rounded-xl text-sm font-bold transition-colors" title="匯出完整備份">
+                      <Download size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯出</span>
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <label className="flex items-center gap-2 px-4 py-2.5 md:px-5 md:py-3 text-slate-600 hover:bg-slate-100 hover:text-emerald-500 rounded-xl text-sm font-bold transition-colors cursor-pointer m-0 relative overflow-hidden" title="還原備份">
+                      <Upload size={20} className="pointer-events-none"/> <span className="hidden sm:inline pointer-events-none">匯入</span>
+                      <input type="file" className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer" accept=".json" onChange={(e) => { e.stopPropagation(); handleFileUpload(e); }}/>
+                    </label>
+                  )}
+                  {isAdmin && (
+                    <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsSettingsOpen(true); }} className="flex items-center gap-2 ml-1 px-5 py-2.5 md:px-6 md:py-3 bg-slate-100 text-slate-700 hover:bg-pink-100 hover:text-pink-600 rounded-xl text-sm font-black transition-colors border border-slate-200 shadow-sm">
+                      <Settings size={20} className="pointer-events-none"/> <span className="pointer-events-none">設定</span>
+                    </button>
+                  )}
+                  <div className="ml-1"><UserMenu user={user} onLogout={onLogout} showToast={showToast} /></div>
                 </div>
               </header>
 
@@ -694,7 +790,7 @@
                           if (s.type === 'empty') return <div key={s.id} className="flex items-center justify-center rounded-2xl bg-slate-50 text-slate-200 font-black text-xl border-2 border-dashed border-slate-100 w-full h-full pointer-events-none">{s.id}</div>;
                           const isNormal = s.type === 'normal'; const isLeave = s.type === 'leave'; const isClub = s.type === 'club'; const isAbsent = s.status === 'absent'; const isLate = s.status === 'late';
                           return (
-                            <button key={s.id} type="button" onClickCapture={(e) => { e.stopPropagation(); if (isNormal && isAbsent && perms.canCheckIn && (perms.myStudentId === null || perms.myStudentId === s.id)) handleCheckIn(s.id); }} className={`relative flex flex-col items-center justify-center rounded-2xl border-2 transition-all duration-300 shadow-sm group w-full h-full overflow-hidden ${isAbsent && isNormal && perms.canCheckIn && (perms.myStudentId === null || perms.myStudentId === s.id) ? 'bg-white border-slate-200 text-slate-600 hover:border-pink-300 hover:bg-pink-50 hover:-translate-y-0.5 cursor-pointer' : 'cursor-default'} ${s.status === 'on-time' ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : ''} ${isLate ? 'bg-red-50 border-red-300 text-red-700' : ''} ${isLeave ? 'bg-orange-50 border-orange-300 text-orange-700 opacity-90' : ''} ${isClub ? 'bg-purple-50 border-purple-300 text-purple-700 opacity-90' : ''} ${perms.myStudentId === s.id ? 'ring-2 ring-pink-400 ring-offset-1' : ''}`}>
+                            <button key={s.id} type="button" onClickCapture={(e) => { e.stopPropagation(); if (isNormal && isAbsent) handleCheckIn(s.id); }} className={`relative flex flex-col items-center justify-center rounded-2xl border-2 transition-all duration-300 shadow-sm group w-full h-full overflow-hidden ${isAbsent && isNormal ? 'bg-white border-slate-200 text-slate-600 hover:border-pink-300 hover:bg-pink-50 hover:-translate-y-0.5 cursor-pointer' : 'cursor-default'} ${s.status === 'on-time' ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : ''} ${isLate ? 'bg-red-50 border-red-300 text-red-700' : ''} ${isLeave ? 'bg-orange-50 border-orange-300 text-orange-700 opacity-90' : ''} ${isClub ? 'bg-purple-50 border-purple-300 text-purple-700 opacity-90' : ''}`}>
                               <span className="text-xl md:text-3xl font-black mb-0.5 opacity-100 pointer-events-none">{s.id}</span>
                               {s.name && <span className="text-[13px] md:text-[16px] font-black mb-0.5 truncate w-full px-1 leading-tight text-center tracking-wider pointer-events-none">{s.name}</span>}
                               <span className={`text-[9px] md:text-[11px] font-black px-1.5 md:px-2 py-0.5 rounded-full tracking-wide shrink-0 pointer-events-none ${isAbsent ? 'bg-slate-100 text-slate-400' : 'bg-white/80 shadow-sm'}`}>{isLeave ? '請假' : isClub ? '社團' : (s.arrivalTime || '未到')}</span>
@@ -728,16 +824,18 @@
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                          {isAdmin && (
                           <div className="flex items-center bg-white/10 rounded-lg border border-white/20 overflow-hidden shadow-sm">
                              <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: Math.max(16, (settings.cbFontSize || 32) - 2)}); }} className="px-4 py-2 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A-</button>
                              <span className="px-2 text-white/90 font-mono text-sm pointer-events-none">{settings.cbFontSize || 32}</span>
                              <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbFontSize: (settings.cbFontSize || 32) + 2}); }} className="px-4 py-2 md:px-5 md:py-2.5 text-white/90 font-bold hover:bg-white/20 transition-colors">A+</button>
                           </div>
+                          )}
                           <div className="flex items-center gap-1.5">
-                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showListNumber: !settings.showListNumber}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showListNumber ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>序號</button>
-                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showTasks: !settings.showTasks}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showTasks ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>任務</button>
-                            <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbDirection: settings.cbDirection==='horizontal'?'vertical':'horizontal'}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.cbDirection==='vertical' ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>{settings.cbDirection==='vertical' ? '直式' : '橫式'}</button>
-                            {canActuallyEdit && <button type="button" onClickCapture={(e) => { e.stopPropagation(); if(canActuallyEdit) setIsEditing(!isEditing); }} className={`px-5 py-2 md:px-6 md:py-2.5 rounded-lg text-sm md:text-base font-black transition-all shadow-md ml-1 ${isEditing ? 'bg-[#ffd54f] text-[#6b4423]' : 'bg-[#ffd54f]/90 hover:bg-[#ffd54f] text-[#6b4423]'}`}>{isEditing ? '完成' : '編輯'}</button>}
+                            {isAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showListNumber: !settings.showListNumber}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showListNumber ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>序號</button>}
+                            {isAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, showTasks: !settings.showTasks}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.showTasks ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>任務</button>}
+                            {isAdmin && <button type="button" onClickCapture={(e) => { e.stopPropagation(); setSettings({...settings, cbDirection: settings.cbDirection==='horizontal'?'vertical':'horizontal'}); }} className={`px-4 py-2 md:px-5 md:py-2.5 rounded-lg border text-sm md:text-base font-bold transition-colors shadow-sm ${settings.cbDirection==='vertical' ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:bg-white/10'}`}>{settings.cbDirection==='vertical' ? '直式' : '橫式'}</button>}
+                            {canEditCB && <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }} className={`px-5 py-2 md:px-6 md:py-2.5 rounded-lg text-sm md:text-base font-black transition-all shadow-md ml-1 ${isEditing ? 'bg-[#ffd54f] text-[#6b4423]' : 'bg-[#ffd54f]/90 hover:bg-[#ffd54f] text-[#6b4423]'}`}>{isEditing ? '完成' : '編輯'}</button>}
                           </div>
                         </div>
                       </div>
@@ -804,6 +902,7 @@
                       <button type="button" onClickCapture={(e) => { e.stopPropagation(); setIsSettingsOpen(false); }} className="p-3 hover:bg-slate-200 rounded-full text-slate-400 transition-colors"><X size={24} className="pointer-events-none"/></button>
                     </div>
                     <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                      <AccountManager users={users} onSave={setUsers} showToast={showToast} />
                       <section>
                         <h4 className="text-sm md:text-base font-bold text-slate-400 mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">⏱️ 時間設定</h4>
                         <div className="grid grid-cols-2 gap-4">
@@ -874,14 +973,30 @@
           );
         }
 
+        // --- 最上層 App：處理登入狀態與管理者帳號初始化 (bootstrap) ---
         function App() {
-          const [currentUser, setCurrentUser] = React.useState(null);
+          const { user, authReady, login, logout } = useAuth();
+          const [bootstrapping, setBootstrapping] = useState(true);
 
-          const handleLogin = (user) => setCurrentUser(user);
-          const handleLogout = () => setCurrentUser(null);
+          useEffect(() => {
+            // 首次啟動時，若資料庫中尚無任何管理者帳號，自動建立預設管理者帳號 (admin / admin123)
+            let cancelled = false;
+            db.ref('users').once('value').then((snap) => {
+              const val = snap.val() || {};
+              const hasAdmin = Object.values(val).some(u => u.role === 'admin');
+              if (!hasAdmin) {
+                return db.ref('users/admin_default').set({
+                  username: 'admin', password: 'admin123', name: '系統管理員', role: 'admin', active: true
+                });
+              }
+            }).catch((err) => console.error('Bootstrap error:', err))
+              .finally(() => { if (!cancelled) setBootstrapping(false); });
+            return () => { cancelled = true; };
+          }, []);
 
-          if (!currentUser) return <LoginScreen onLogin={handleLogin} />;
-          return <SchoolCheckInKing currentUser={currentUser} onLogout={handleLogout} />;
+          if (!authReady) return null;
+          if (!user) return <LoginScreen onLogin={login} bootstrapping={bootstrapping} />;
+          return <SchoolCheckInKing user={user} onLogout={logout} />;
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
